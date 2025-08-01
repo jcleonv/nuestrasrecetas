@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NuestrasRecetas.club - Comparte tus recetas favoritas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Modern gradient background */
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Overlay for better text contrast */
+        .gradient-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1;
+        }
+        
+        /* Ensure content is above overlay */
+        .gradient-bg > * {
+            position: relative;
+            z-index: 2;
+        }
+        
+        /* Clean form container */
+        .form-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        /* Modern input styling */
+        .modern-input {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: #1f2937;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modern-input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .modern-input::placeholder {
+            color: #9ca3af;
+        }
+        
+        /* Form labels */
+        .form-label {
+            color: #374151;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+        
+        /* Button styling */
+        .primary-button {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            font-weight: 700;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+        
+        .primary-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.6);
+        }
+        
+        /* Hero text with better contrast */
+        .hero-title {
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            font-weight: 800;
+        }
+        
+        .hero-subtitle {
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            font-weight: 500;
+        }
+        
+        /* Feature cards */
+        .feature-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .hover-scale {
+            transition: transform 0.3s ease;
+        }
+        
+        .hover-scale:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="gradient-bg">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="p-6">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-utensils text-white text-3xl"></i>
+                    <h1 class="text-2xl font-bold text-white">NuestrasRecetas.club</h1>
+                </div>
+                <div class="space-x-4">
+                    <button onclick="showLogin()" class="text-white hover:text-emerald-200 transition-colors">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Iniciar Sesión
+                    </button>
+                    <button onclick="showSignup()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-full transition-colors">
+                        <i class="fas fa-user-plus mr-2"></i>Registrarse
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex items-center justify-center p-6">
+            <div class="max-w-6xl mx-auto text-center">
+                <!-- Hero Section -->
+                <div id="hero-section" class="space-y-12">
+                    <div class="space-y-8">
+                        <h2 class="text-6xl md:text-8xl hero-title leading-tight">
+                            Comparte tus<br>
+                            <span class="text-emerald-300">Recetas Favoritas</span>
+                        </h2>
+                        <p class="text-2xl md:text-3xl hero-subtitle max-w-4xl mx-auto leading-relaxed">
+                            Únete a nuestra comunidad de cocineros apasionados. Descubre, comparte y guarda las mejores recetas de la familia.
+                        </p>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                        <button onclick="showSignup()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover-scale transition-all">
+                            <i class="fas fa-rocket mr-2"></i>Comenzar Gratis
+                        </button>
+                        <button onclick="showFeatures()" class="glass text-white px-8 py-4 rounded-full text-lg font-semibold hover-scale transition-all">
+                            <i class="fas fa-play mr-2"></i>Ver Características
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Features Section -->
+                <div id="features-section" class="hidden space-y-12">
+                    <h3 class="text-5xl font-bold hero-title mb-12">¿Por qué NuestrasRecetas.club?</h3>
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <div class="feature-card hover-scale">
+                            <i class="fas fa-users text-emerald-300 text-5xl mb-6"></i>
+                            <h4 class="text-2xl font-bold text-white mb-4">Comunidad</h4>
+                            <p class="text-white/90 text-lg">Conecta con otros cocineros, sigue a tus favoritos y descubre nuevas recetas increíbles.</p>
+                        </div>
+                        <div class="feature-card hover-scale">
+                            <i class="fas fa-heart text-emerald-300 text-5xl mb-6"></i>
+                            <h4 class="text-2xl font-bold text-white mb-4">Favoritos</h4>
+                            <p class="text-white/90 text-lg">Guarda tus recetas favoritas, crea colecciones y accede a ellas desde cualquier lugar.</p>
+                        </div>
+                        <div class="feature-card hover-scale">
+                            <i class="fas fa-calendar-alt text-emerald-300 text-5xl mb-6"></i>
+                            <h4 class="text-2xl font-bold text-white mb-4">Planificación</h4>
+                            <p class="text-white/90 text-lg">Planifica tus comidas semanales y genera listas de compras automáticamente.</p>
+                        </div>
+                    </div>
+                    <button onclick="showHero()" class="text-emerald-300 hover:text-emerald-200 transition-colors text-lg font-semibold">
+                        <i class="fas fa-arrow-left mr-2"></i>Volver
+                    </button>
+                </div>
+
+                <!-- Authentication Forms -->
+                <div id="auth-section" class="hidden">
+                    <!-- Login Form -->
+                    <div id="login-form" class="form-container">
+                        <div class="text-center mb-8">
+                            <i class="fas fa-sign-in-alt text-emerald-500 text-4xl mb-4"></i>
+                            <h3 class="text-3xl font-bold text-gray-800">Iniciar Sesión</h3>
+                            <p class="text-gray-600 mt-2">Bienvenido de vuelta a NuestrasRecetas.club</p>
+                        </div>
+                        
+                        <form onsubmit="handleLogin(event)" class="space-y-6">
+                            <div>
+                                <label class="block form-label">Email o Usuario</label>
+                                <input type="text" id="login-email" required 
+                                       class="w-full modern-input"
+                                       placeholder="tu@email.com">
+                            </div>
+                            <div>
+                                <label class="block form-label">Contraseña</label>
+                                <input type="password" id="login-password" required 
+                                       class="w-full modern-input"
+                                       placeholder="••••••••">
+                            </div>
+                            <button type="submit" class="w-full primary-button">
+                                <i class="fas fa-sign-in-alt mr-2"></i>Entrar
+                            </button>
+                        </form>
+                        
+                        <div class="mt-8 text-center">
+                            <p class="text-gray-600 text-sm">¿No tienes cuenta?</p>
+                            <button onclick="showSignup()" class="text-emerald-600 hover:text-emerald-700 font-semibold text-sm mt-1">
+                                Regístrate aquí
+                            </button>
+                        </div>
+                        
+                        <button onclick="showHero()" class="mt-6 text-gray-500 hover:text-gray-700 text-sm flex items-center mx-auto">
+                            <i class="fas fa-arrow-left mr-2"></i>Volver al inicio
+                        </button>
+                    </div>
+
+                    <!-- Signup Form -->
+                    <div id="signup-form" class="form-container hidden">
+                        <div class="text-center mb-8">
+                            <i class="fas fa-user-plus text-emerald-500 text-4xl mb-4"></i>
+                            <h3 class="text-3xl font-bold text-gray-800">Crear Cuenta</h3>
+                            <p class="text-gray-600 mt-2">Únete a la comunidad de NuestrasRecetas.club</p>
+                        </div>
+                        
+                        <form onsubmit="handleSignup(event)" class="space-y-6">
+                            <div>
+                                <label class="block form-label">Nombre Completo</label>
+                                <input type="text" id="signup-name" required 
+                                       class="w-full modern-input"
+                                       placeholder="María García">
+                            </div>
+                            <div>
+                                <label class="block form-label">Nombre de Usuario</label>
+                                <input type="text" id="signup-username" required 
+                                       class="w-full modern-input"
+                                       placeholder="mariagarcia">
+                            </div>
+                            <div>
+                                <label class="block form-label">Email</label>
+                                <input type="email" id="signup-email" required 
+                                       class="w-full modern-input"
+                                       placeholder="maria@email.com">
+                            </div>
+                            <div>
+                                <label class="block form-label">Contraseña</label>
+                                <input type="password" id="signup-password" required 
+                                       class="w-full modern-input"
+                                       placeholder="Mínimo 6 caracteres">
+                            </div>
+                            <div>
+                                <label class="block form-label">Confirmar Contraseña</label>
+                                <input type="password" id="signup-confirm" required 
+                                       class="w-full modern-input"
+                                       placeholder="Confirma tu contraseña">
+                            </div>
+                            <button type="submit" class="w-full primary-button">
+                                <i class="fas fa-user-plus mr-2"></i>Crear Cuenta
+                            </button>
+                        </form>
+                        
+                        <div class="mt-8 text-center">
+                            <p class="text-gray-600 text-sm">¿Ya tienes cuenta?</p>
+                            <button onclick="showLogin()" class="text-emerald-600 hover:text-emerald-700 font-semibold text-sm mt-1">
+                                Inicia sesión aquí
+                            </button>
+                        </div>
+                        
+                        <button onclick="showHero()" class="mt-6 text-gray-500 hover:text-gray-700 text-sm flex items-center mx-auto">
+                            <i class="fas fa-arrow-left mr-2"></i>Volver al inicio
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="p-6 text-center">
+            <p class="text-white/60">
+                &copy; 2025 NuestrasRecetas.club - Compartiendo sabores, creando memorias
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        function showHero() {
+            document.getElementById('hero-section').classList.remove('hidden');
+            document.getElementById('features-section').classList.add('hidden');
+            document.getElementById('auth-section').classList.add('hidden');
+        }
+
+        function showFeatures() {
+            document.getElementById('hero-section').classList.add('hidden');
+            document.getElementById('features-section').classList.remove('hidden');
+            document.getElementById('auth-section').classList.add('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('hero-section').classList.add('hidden');
+            document.getElementById('features-section').classList.add('hidden');
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('signup-form').classList.add('hidden');
+        }
+
+        function showSignup() {
+            document.getElementById('hero-section').classList.add('hidden');
+            document.getElementById('features-section').classList.add('hidden');
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('signup-form').classList.remove('hidden');
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    window.location.href = '/dashboard';
+                } else {
+                    alert(data.error || 'Error al iniciar sesión');
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            const username = document.getElementById('signup-username').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm').value;
+
+            if (password !== confirmPassword) {
+                alert('Las contraseñas no coinciden');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, username, email, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('¡Cuenta creada exitosamente! Ahora puedes iniciar sesión.');
+                    showLogin();
+                } else {
+                    alert(data.error || 'Error al crear la cuenta');
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        }
+    </script>
+</body>
+</html>

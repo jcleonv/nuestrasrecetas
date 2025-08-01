@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NuestrasRecetas.club - Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#10b981',
+            'primary-dark': '#059669',
+            'dark-bg': '#0f172a',
+            'dark-surface': '#1e293b',
+            'dark-surface-light': '#334155',
+            'dark-border': '#475569',
+            'dark-text': '#f1f5f9',
+            'dark-text-muted': '#94a3b8'
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-in-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+            'pulse-gentle': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' }
+            },
+            slideUp: {
+              '0%': { transform: 'translateY(10px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #475569 #1e293b; }
+    *::-webkit-scrollbar { width: 6px; }
+    *::-webkit-scrollbar-track { background: #1e293b; }
+    *::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    *::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    body { 
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #f1f5f9;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    .glass-panel { 
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    
+    .input { 
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #f1f5f9;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(5px);
+    }
+    .input:focus { 
+      outline: none;
+      border-color: #10b981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+      background: rgba(15, 23, 42, 0.8);
+    }
+    
+    .btn { 
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-weight: 600;
+      color: white;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    .btn:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+    .btn:active { transform: translateY(0); }
+    
+    .btn-secondary {
+      background: rgba(51, 65, 85, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      color: #f1f5f9;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .btn-secondary:hover {
+      background: rgba(71, 85, 105, 0.8);
+      border-color: rgba(100, 116, 139, 0.6);
+    }
+    
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+    }
+    
+    .day-col { min-width: 200px; }
+    .droptarget { 
+      min-height: 180px;
+      border: 2px dashed rgba(71, 85, 105, 0.4);
+      border-radius: 12px;
+      padding: 12px;
+      transition: all 0.2s ease;
+      background: rgba(15, 23, 42, 0.2);
+    }
+    .droptarget:hover, .droptarget.drag-over {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.05);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+    }
+    
+    .recipe-pill { 
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 12px;
+      padding: 12px;
+      cursor: grab;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(5px);
+    }
+    .recipe-pill:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      border-color: rgba(100, 116, 139, 0.5);
+    }
+    .recipe-pill:active { cursor: grabbing; }
+    .recipe-pill.selected {
+      border-color: #10b981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+    
+    .badge { 
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .heading { 
+      font-weight: 700;
+      font-size: 24px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .grid-auto { 
+      display: grid;
+      grid-auto-flow: column;
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    
+    .table th, .table td { 
+      padding: 12px;
+      border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+    }
+    .table th { 
+      color: #94a3b8;
+      font-weight: 600;
+      text-align: left;
+      background: rgba(15, 23, 42, 0.4);
+    }
+    .table tr:hover {
+      background: rgba(51, 65, 85, 0.2);
+    }
+    
+    .modal-backdrop {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+    }
+    
+    .tab-button {
+      background: rgba(51, 65, 85, 0.6);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-weight: 600;
+      color: #94a3b8;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .tab-button.active {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border-color: transparent;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    .tab-button:not(.active):hover {
+      background: rgba(71, 85, 105, 0.6);
+      color: #f1f5f9;
+    }
+    
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .fade-in { animation: fade-in 0.3s ease-in-out; }
+    .slide-up { animation: slide-up 0.3s ease-out; }
+    
+    @media (max-width: 768px) {
+      .day-col { min-width: 160px; }
+      .glass-panel { border-radius: 12px; margin: 0; }
+      .heading { font-size: 20px; }
+      
+      body { padding: 0; }
+      .max-w-\[1400px\] { padding: 16px; }
+      
+      .grid.grid-cols-1.lg\:grid-cols-3 {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      
+      .btn { 
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+      
+      .input {
+        padding: 10px 14px;
+        font-size: 16px; /* Prevents zoom on iOS */
+      }
+      
+      .modal-backdrop .glass-panel {
+        margin: 16px;
+        max-height: calc(100vh - 32px);
+        width: calc(100vw - 32px);
+      }
+      
+      .grid-auto {
+        gap: 12px;
+        padding-bottom: 16px;
+      }
+      
+      .recipe-pill {
+        padding: 12px;
+      }
+      
+      .droptarget {
+        min-height: 120px;
+        padding: 8px;
+      }
+      
+      /* Stack buttons vertically on very small screens */
+      @media (max-width: 480px) {
+        .flex-wrap {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        
+        .flex-wrap .btn {
+          margin-bottom: 8px;
+        }
+        
+        .grid.md\:grid-cols-2 {
+          grid-template-columns: 1fr;
+        }
+        
+        .day-col {
+          min-width: 140px;
+        }
+        
+        .heading {
+          font-size: 18px;
+        }
+      }
+    }
+    
+    /* Better touch targets for mobile */
+    @media (pointer: coarse) {
+      .btn {
+        min-height: 44px;
+        min-width: 44px;
+      }
+      
+      input, textarea, select {
+        min-height: 44px;
+      }
+      
+      .recipe-pill {
+        min-height: 60px;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-[1400px] mx-auto p-4 flex flex-col gap-6">
+    <!-- Header -->
+    <header class="glass-panel p-6 fade-in">
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center">
+            <i class="fas fa-utensils text-white text-xl"></i>
+          </div>
+          <div>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+              NuestrasRecetas.club
+            </h1>
+            <p class="text-dark-text-muted">Planifica tus comidas semanales</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <!-- User Info -->
+          <div class="flex items-center gap-3 px-4 py-2 glass-panel rounded-lg">
+            <div class="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center">
+              <i class="fas fa-user text-white text-sm"></i>
+            </div>
+            <span class="text-dark-text text-sm font-medium">Bienvenido</span>
+          </div>
+          
+          <!-- Action Buttons -->
+          <button id="btnCommunity" class="btn btn-secondary" onclick="window.location.href='/community'">
+            <i class="fas fa-users"></i>
+            Comunidad
+          </button>
+          <button id="btnExportRecipes" class="btn btn-secondary">
+            <i class="fas fa-download"></i>
+            Export
+          </button>
+          <button id="btnImportRecipes" class="btn btn-secondary">
+            <i class="fas fa-upload"></i>
+            Import
+          </button>
+          <button id="btnSavePlan" class="btn">
+            <i class="fas fa-save"></i>
+            Guardar
+          </button>
+          
+          <!-- User Menu -->
+          <div class="relative">
+            <button id="userMenuBtn" class="btn btn-secondary" onclick="toggleUserMenu()">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 glass-panel rounded-lg py-2 shadow-lg z-50">
+              <a href="/profile" class="block px-4 py-2 text-dark-text hover:bg-dark-surface-light transition-colors">
+                <i class="fas fa-user mr-2"></i>Mi Perfil
+              </a>
+              <a href="/settings" class="block px-4 py-2 text-dark-text hover:bg-dark-surface-light transition-colors">
+                <i class="fas fa-cog mr-2"></i>Configuración
+              </a>
+              <button onclick="logout()" class="w-full text-left px-4 py-2 text-red-400 hover:bg-dark-surface-light transition-colors">
+                <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Left: Recipe Library -->
+      <div class="glass-panel p-6 flex flex-col gap-4 lg:col-span-1 slide-up">
+        <div class="flex items-center gap-3 mb-2">
+          <i class="fas fa-book text-primary text-xl"></i>
+          <div class="heading">Recipe Library</div>
+        </div>
+        
+        <div class="flex gap-3">
+          <div class="relative flex-1">
+            <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-dark-text-muted"></i>
+            <input id="search" class="input w-full pl-12" placeholder="Search recipes..." />
+          </div>
+          <button id="btnNew" class="btn">
+            <i class="fas fa-plus"></i>
+            New
+          </button>
+        </div>
+        
+        <div id="recipeList" class="flex flex-col gap-3 overflow-auto" style="max-height: 55vh;">
+          <!-- Loading state -->
+          <div id="recipesLoading" class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </div>
+        
+        <div class="flex gap-3 justify-end pt-4 border-t border-dark-border">
+          <button id="btnEdit" class="btn btn-secondary">
+            <i class="fas fa-edit"></i>
+            Edit
+          </button>
+          <button id="btnDelete" class="btn btn-danger">
+            <i class="fas fa-trash"></i>
+            Delete
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Planner + Groceries -->
+      <div class="glass-panel p-6 flex flex-col gap-4 lg:col-span-2 slide-up">
+        <div class="flex gap-4">
+          <button class="tab-button active" data-tab="planner">
+            <i class="fas fa-calendar-week mr-2"></i>
+            Weekly Planner
+          </button>
+          <button class="tab-button" data-tab="groceries">
+            <i class="fas fa-shopping-cart mr-2"></i>
+            Grocery List
+          </button>
+        </div>
+
+        <div id="tabPlanner" class="flex flex-col gap-4">
+          <div id="planner" class="grid-auto">
+            <!-- day columns injected by JS -->
+          </div>
+          <div class="flex items-center gap-2 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+            <i class="fas fa-lightbulb text-primary"></i>
+            <span class="text-dark-text-muted text-sm">
+              Drag recipes from the library into days. Click the number to adjust servings.
+            </span>
+          </div>
+        </div>
+
+        <div id="tabGroceries" class="hidden flex flex-col gap-4">
+          <div class="glass-panel p-4 overflow-auto" style="max-height: 60vh;">
+            <table class="table w-full">
+              <thead>
+                <tr>
+                  <th class="sticky top-0">
+                    <i class="fas fa-tag mr-2"></i>Item
+                  </th>
+                  <th class="sticky top-0">
+                    <i class="fas fa-balance-scale mr-2"></i>Qty
+                  </th>
+                  <th class="sticky top-0">Unit</th>
+                  <th class="sticky top-0">
+                    <i class="fas fa-sticky-note mr-2"></i>Note
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="groceryBody">
+                <!-- Loading state -->
+                <tr id="groceryLoading">
+                  <td colspan="4" class="text-center py-8">
+                    <div class="flex items-center justify-center gap-2">
+                      <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                      <span class="text-dark-text-muted">Generating grocery list...</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex gap-3 justify-end pt-4 border-t border-dark-border">
+            <button id="btnCopy" class="btn btn-secondary">
+              <i class="fas fa-copy"></i>
+              Copy List
+            </button>
+            <button id="btnPrint" class="btn btn-secondary">
+              <i class="fas fa-print"></i>
+              Print View
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recipe Modal -->
+  <div id="modal" class="fixed inset-0 hidden items-center justify-center modal-backdrop z-50">
+    <div class="glass-panel p-6 w-[800px] max-w-[95vw] max-h-[90vh] overflow-y-auto slide-up">
+      <div class="flex items-center gap-3 mb-6">
+        <i class="fas fa-utensils text-primary text-xl"></i>
+        <h2 class="heading" id="modalTitle">Recipe</h2>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-dark-text-muted mb-2">
+            <i class="fas fa-signature mr-1"></i>Recipe Title
+          </label>
+          <input id="mTitle" class="input w-full" placeholder="Enter recipe name..." />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-dark-text-muted mb-2">
+            <i class="fas fa-folder mr-1"></i>Category
+          </label>
+          <input id="mCategory" class="input w-full" placeholder="e.g., Main Course, Dessert..." />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-dark-text-muted mb-2">
+            <i class="fas fa-tags mr-1"></i>Tags
+          </label>
+          <input id="mTags" class="input w-full" placeholder="vegetarian, quick, italian..." />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-dark-text-muted mb-2">
+            <i class="fas fa-users mr-1"></i>Servings
+          </label>
+          <input id="mServings" type="number" min="1" value="2" class="input w-full" />
+        </div>
+        
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-dark-text-muted mb-2">
+            <i class="fas fa-list mr-1"></i>Ingredients
+          </label>
+          <div class="text-xs text-dark-text-muted mb-2 p-2 bg-primary/5 border border-primary/20 rounded-lg">
+            <i class="fas fa-info-circle mr-1"></i>
+            Format: quantity unit ingredient - optional note (e.g., "200 g spaghetti - whole wheat")
+          </div>
+          <textarea id="mIngredients" class="input w-full" rows="8" placeholder="200 g spaghetti
+1 cup milk
+2 pc eggs - large
+1 tbsp olive oil"></textarea>
+        </div>
+        
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-dark-text-muted mb-2">
+            <i class="fas fa-clipboard-list mr-1"></i>Cooking Instructions
+          </label>
+          <textarea id="mSteps" class="input w-full" rows="6" placeholder="1. Boil water in a large pot...
+2. Add salt and pasta...
+3. Cook according to package directions..."></textarea>
+        </div>
+      </div>
+      
+      <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-dark-border">
+        <button id="mCancel" class="btn btn-secondary">
+          <i class="fas fa-times"></i>
+          Cancel
+        </button>
+        <button id="mSave" class="btn">
+          <i class="fas fa-save"></i>
+          Save Recipe
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Modal -->
+  <div id="importModal" class="fixed inset-0 hidden items-center justify-center modal-backdrop z-50">
+    <div class="glass-panel p-6 w-[800px] max-w-[95vw] max-h-[90vh] overflow-y-auto slide-up">
+      <div class="flex items-center gap-3 mb-6">
+        <i class="fas fa-upload text-primary text-xl"></i>
+        <h2 class="heading">Import Recipes</h2>
+      </div>
+      
+      <div class="mb-4">
+        <div class="text-sm text-dark-text-muted mb-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+          <i class="fas fa-info-circle mr-2"></i>
+          Paste your recipe data in JSON format. Each recipe should have: title, category, tags, servings, ingredients, and steps.
+        </div>
+        <textarea id="importText" class="input w-full" rows="16" placeholder='[
+  {
+    "title": "Spaghetti Bolognese",
+    "category": "Main Course",
+    "tags": "italian, pasta",
+    "servings": 4,
+    "ingredients": [
+      {"name": "spaghetti", "qty": 400, "unit": "g"},
+      {"name": "ground beef", "qty": 500, "unit": "g"}
+    ],
+    "steps": "1. Cook pasta... 2. Prepare sauce..."
+  }
+]'></textarea>
+      </div>
+      
+      <div class="flex gap-3 justify-end pt-4 border-t border-dark-border">
+        <button id="impCancel" class="btn btn-secondary">
+          <i class="fas fa-times"></i>
+          Cancel
+        </button>
+        <button id="impDo" class="btn">
+          <i class="fas fa-upload"></i>
+          Import Recipes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print Modal -->
+  <div id="printModal" class="fixed inset-0 hidden items-center justify-center modal-backdrop z-50">
+    <div class="glass-panel p-6 w-[800px] max-w-[95vw] max-h-[90vh] overflow-y-auto slide-up">
+      <div class="flex items-center gap-3 mb-6">
+        <i class="fas fa-print text-primary text-xl"></i>
+        <h2 class="heading">Grocery List - Print View</h2>
+      </div>
+      
+      <div class="mb-4">
+        <div class="text-sm text-dark-text-muted mb-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+          <i class="fas fa-info-circle mr-2"></i>
+          Copy this text or print this page for your shopping trip.
+        </div>
+        <textarea id="printText" class="input w-full font-mono" rows="20" readonly></textarea>
+      </div>
+      
+      <div class="flex gap-3 justify-end pt-4 border-t border-dark-border">
+        <button id="printClose" class="btn btn-secondary">
+          <i class="fas fa-times"></i>
+          Close
+        </button>
+        <button onclick="window.print()" class="btn">
+          <i class="fas fa-print"></i>
+          Print Page
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    let recipes = [];
+    let selectedRecipeId = null;
+    let editingRecipeId = null;
+    let plan = {}; // { day: [{recipe_id, multiplier, title}] }
+    let groceries = [];
+
+    function el(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+
+    function show(id, visible) {
+      const n = document.getElementById(id);
+      if (!n) return;
+      n.classList.toggle("hidden", !visible);
+      if (visible) n.classList.add("flex");
+      else n.classList.remove("flex");
+    }
+
+
+    function recipePill(r) {
+      const d = el("div","recipe-pill flex items-center justify-between gap-3");
+      d.draggable = true;
+      d.dataset.id = r.id;
+      d.addEventListener("dragstart", (ev) => {
+        ev.dataTransfer.setData("application/json", JSON.stringify({type:"recipe", id:r.id, title:r.title}));
+        d.style.opacity = "0.5";
+      });
+      d.addEventListener("dragend", () => {
+        d.style.opacity = "1";
+      });
+      
+      const left = el("div","flex items-center gap-3 flex-1 min-w-0");
+      
+      // Recipe icon
+      const icon = el("div","w-10 h-10 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center flex-shrink-0");
+      icon.innerHTML = '<i class="fas fa-utensils text-primary text-sm"></i>';
+      left.appendChild(icon);
+      
+      const content = el("div","flex flex-col min-w-0 flex-1");
+      const title = el("div","font-semibold truncate", r.title);
+      content.appendChild(title);
+      
+      const sub = el("div","text-xs text-dark-text-muted flex items-center gap-2");
+      const categorySpan = el("span","");
+      categorySpan.textContent = r.category || "Uncategorized";
+      sub.appendChild(categorySpan);
+      
+      if (r.tags) {
+        sub.appendChild(el("span","", "•"));
+        const tagsSpan = el("span","text-primary/80");
+        tagsSpan.textContent = r.tags;
+        sub.appendChild(tagsSpan);
+      }
+      content.appendChild(sub);
+      left.appendChild(content);
+      
+      d.appendChild(left);
+      
+      const badge = el("div","badge flex items-center gap-1 flex-shrink-0");
+      badge.innerHTML = `<i class="fas fa-users text-xs"></i> ${r.servings || 2}`;
+      d.appendChild(badge);
+      
+      d.addEventListener("click", () => {
+        selectedRecipeId = r.id;
+        highlightSelection();
+      });
+      return d;
+    }
+
+    function highlightSelection() {
+      const list = document.getElementById("recipeList");
+      Array.from(list.children).forEach(c => {
+        if (c.dataset && c.dataset.id) {
+          const isSelected = parseInt(c.dataset.id) === selectedRecipeId;
+          c.classList.toggle("selected", isSelected);
+        }
+      });
+    }
+
+    function renderRecipeList() {
+      const list = document.getElementById("recipeList");
+      list.innerHTML = "";
+      recipes.forEach(r => {
+        const pill = recipePill(r);
+        list.appendChild(pill);
+      });
+      highlightSelection();
+    }
+
+    function initPlanner() {
+      const p = document.getElementById("planner");
+      p.innerHTML = "";
+      days.forEach(day => {
+        const col = el("div","day-col flex flex-col gap-3");
+        
+        // Day header
+        const head = el("div","glass-panel p-4 flex items-center justify-between");
+        const dayTitle = el("div","font-bold text-lg flex items-center gap-2");
+        dayTitle.innerHTML = `<i class="fas fa-calendar-day text-primary"></i> ${day}`;
+        head.appendChild(dayTitle);
+        
+        const btnClr = el("button","btn btn-secondary text-sm px-3 py-1");
+        btnClr.innerHTML = '<i class="fas fa-broom text-xs"></i>';
+        btnClr.title = "Clear day";
+        btnClr.addEventListener("click", () => {
+          if (plan[day] && plan[day].length > 0) {
+            if (confirm(`Clear all recipes for ${day}?`)) {
+              plan[day] = [];
+              renderDay(day);
+              updateGroceries();
+            }
+          }
+        });
+        head.appendChild(btnClr);
+        col.appendChild(head);
+
+        // Drop zone
+        const drop = el("div","droptarget flex flex-col gap-3");
+        const emptyState = el("div","text-center text-dark-text-muted py-8");
+        emptyState.innerHTML = `
+          <i class="fas fa-plus-circle text-3xl mb-2 opacity-50"></i>
+          <div class="text-sm">Drop recipes here</div>
+        `;
+        drop.appendChild(emptyState);
+        
+        drop.addEventListener("dragover", (ev) => {
+          ev.preventDefault();
+          drop.classList.add("drag-over");
+        });
+        drop.addEventListener("dragleave", (ev) => {
+          if (!drop.contains(ev.relatedTarget)) {
+            drop.classList.remove("drag-over");
+          }
+        });
+        drop.addEventListener("drop", (ev) => {
+          ev.preventDefault();
+          drop.classList.remove("drag-over");
+          try {
+            const data = JSON.parse(ev.dataTransfer.getData("application/json"));
+            if (data.type === "recipe") {
+              plan[day] = plan[day] || [];
+              const title = (recipes.find(r => r.id === data.id) || {}).title || ("Recipe #" + data.id);
+              plan[day].push({ recipe_id: data.id, multiplier: 1, title });
+              renderDay(day);
+              updateGroceries();
+            }
+          } catch(e) {}
+        });
+        drop.id = "drop-" + day;
+        col.appendChild(drop);
+        p.appendChild(col);
+      });
+    }
+
+    function renderDay(day) {
+      const wrap = document.getElementById("drop-" + day);
+      const planItems = plan[day] || [];
+      
+      wrap.innerHTML = "";
+      
+      if (planItems.length === 0) {
+        const emptyState = el("div","text-center text-dark-text-muted py-8");
+        emptyState.innerHTML = `
+          <i class="fas fa-plus-circle text-3xl mb-2 opacity-50"></i>
+          <div class="text-sm">Drop recipes here</div>
+        `;
+        wrap.appendChild(emptyState);
+        return;
+      }
+      
+      planItems.forEach((it, idx) => {
+        const row = el("div","glass-panel p-3 flex items-center gap-3 fade-in");
+        
+        // Recipe info
+        const info = el("div","flex-1 min-w-0");
+        const title = el("div","font-medium truncate", it.title || ("Recipe #" + it.recipe_id));
+        info.appendChild(title);
+        
+        const recipe = recipes.find(r => r.id === it.recipe_id);
+        if (recipe) {
+          const meta = el("div","text-xs text-dark-text-muted flex items-center gap-2 mt-1");
+          if (recipe.category) {
+            meta.appendChild(el("span","", recipe.category));
+          }
+          if (recipe.tags) {
+            if (recipe.category) meta.appendChild(el("span","", "•"));
+            const tagsSpan = el("span","text-primary/80");
+            tagsSpan.textContent = recipe.tags;
+            meta.appendChild(tagsSpan);
+          }
+          info.appendChild(meta);
+        }
+        row.appendChild(info);
+
+        // Multiplier
+        const multGroup = el("div","flex items-center gap-2");
+        const multLabel = el("div","text-xs text-dark-text-muted whitespace-nowrap");
+        multLabel.innerHTML = '<i class="fas fa-users"></i>';
+        multGroup.appendChild(multLabel);
+        
+        const mult = el("input","input w-16 text-center text-sm");
+        mult.type = "number"; 
+        mult.min = "1"; 
+        mult.value = it.multiplier || 1;
+        mult.addEventListener("change", () => {
+          it.multiplier = Math.max(1, parseInt(mult.value || "1"));
+          updateGroceries();
+        });
+        multGroup.appendChild(mult);
+        row.appendChild(multGroup);
+
+        // Delete button
+        const del = el("button","btn btn-danger text-sm px-2 py-1");
+        del.innerHTML = '<i class="fas fa-trash text-xs"></i>';
+        del.title = "Remove recipe";
+        del.addEventListener("click", () => {
+          if (confirm(`Remove "${it.title}" from ${day}?`)) {
+            plan[day].splice(idx,1);
+            renderDay(day);
+            updateGroceries();
+          }
+        });
+        row.appendChild(del);
+
+        wrap.appendChild(row);
+      });
+    }
+
+    async function loadPlan() {
+      const res = await fetch("/api/plan");
+      const data = await res.json();
+      plan = data || {};
+      days.forEach(d => {
+        plan[d] = plan[d] || [];
+      });
+      initPlanner();
+      days.forEach(renderDay);
+      await updateGroceries();
+    }
+
+    async function updateGroceries() {
+      const res = await fetch("/api/groceries", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({plan})
+      });
+      groceries = await res.json();
+      renderGroceries();
+    }
+
+    function renderGroceries() {
+      const tbody = document.getElementById("groceryBody");
+      tbody.innerHTML = "";
+      groceries.forEach(g => {
+        const tr = el("tr","");
+        const tds = [
+          el("td","", g.name),
+          el("td","", String(g.qty)),
+          el("td","", g.unit || ""),
+          el("td","", g.note || "")
+        ];
+        tds.forEach(td => tr.appendChild(td));
+        tbody.appendChild(tr);
+      });
+    }
+
+    function parseIngredients(text) {
+      const items = [];
+      const lines = text.split(/\r?\n/);
+      function fracToFloat(s) {
+        try {
+          if (s.includes("/")) {
+            const [a,b] = s.split("/");
+            return parseFloat(a)/parseFloat(b);
+          }
+        } catch(e){return null;}
+        return null;
+      }
+      for (let raw of lines) {
+        let line = raw.trim();
+        if (!line) continue;
+        let note = "";
+        const idx = line.indexOf(" - ");
+        if (idx >= 0) {
+          note = line.slice(idx + 3).trim();
+          line = line.slice(0, idx).trim();
+        }
+        const parts = line.split(/\s+/);
+        let i = 0;
+        let qty = null;
+        let unit = "";
+        let name = "";
+
+        if (i < parts.length) {
+          const n = parseFloat(parts[i]);
+          if (!isNaN(n)) { qty = n; i++; }
+          else {
+            const f = fracToFloat(parts[i]);
+            if (f !== null) { qty = f; i++; }
+          }
+        }
+        if (qty !== null && i < parts.length) {
+          const f2 = fracToFloat(parts[i]);
+          if (f2 !== null) { qty += f2; i++; }
+        }
+        if (qty !== null && i < parts.length) {
+          unit = parts[i]; i++;
+        }
+        name = parts.slice(i).join(" ").trim();
+        if (qty === null) {
+          qty = 1; unit = "pc"; name = parts.join(" ");
+        }
+        items.push({name, qty, unit, note});
+      }
+      return items;
+    }
+
+    function openModal(edit=false) {
+      show("modal", true);
+      document.getElementById("modalTitle").textContent = edit ? "Edit Recipe" : "New Recipe";
+    }
+    function closeModal() { show("modal", false); }
+
+    async function onNew() {
+      editingRecipeId = null;
+      document.getElementById("mTitle").value = "";
+      document.getElementById("mCategory").value = "";
+      document.getElementById("mTags").value = "";
+      document.getElementById("mServings").value = "2";
+      document.getElementById("mIngredients").value = "";
+      document.getElementById("mSteps").value = "";
+      openModal(false);
+    }
+
+    async function onEdit() {
+      if (!selectedRecipeId) { alert("Select a recipe to edit."); return; }
+      const res = await fetch("/api/recipe/" + selectedRecipeId);
+      if (!res.ok) { alert("Not found"); return; }
+      const r = await res.json();
+      editingRecipeId = r.id;
+      document.getElementById("mTitle").value = r.title || "";
+      document.getElementById("mCategory").value = r.category || "";
+      document.getElementById("mTags").value = r.tags || "";
+      document.getElementById("mServings").value = String(r.servings || 2);
+      const ingLines = (r.ingredients || []).map(ing => {
+        const note = ing.note ? " - " + ing.note : "";
+        const qty = ing.qty ?? "";
+        const unit = ing.unit ?? "";
+        const name = ing.name ?? "";
+        let line = (qty + " " + unit + " " + name).trim();
+        return (line + note).trim();
+      }).join("\n");
+      document.getElementById("mIngredients").value = ingLines;
+      document.getElementById("mSteps").value = r.steps || "";
+      openModal(true);
+    }
+
+    async function onDelete() {
+      if (!selectedRecipeId) { alert("Select a recipe to delete."); return; }
+      if (!confirm("Delete this recipe?")) return;
+      const res = await fetch("/api/recipe/" + selectedRecipeId, {method:"DELETE"});
+      if (!res.ok) { alert("Failed"); return; }
+      selectedRecipeId = null;
+      await loadRecipes();
+    }
+
+    async function onSaveRecipe() {
+      const payload = {
+        title: document.getElementById("mTitle").value.trim(),
+        category: document.getElementById("mCategory").value.trim(),
+        tags: document.getElementById("mTags").value.trim(),
+        servings: parseInt(document.getElementById("mServings").value || "2"),
+        ingredients: parseIngredients(document.getElementById("mIngredients").value || ""),
+        steps: document.getElementById("mSteps").value || ""
+      };
+      if (!payload.title) { alert("Title is required."); return; }
+      let res;
+      if (editingRecipeId) {
+        res = await fetch("/api/recipe/" + editingRecipeId, {
+          method:"PUT", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload)
+        });
+      } else {
+        res = await fetch("/api/recipe", {
+          method:"POST", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload)
+        });
+      }
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || "Failed"); return; }
+      closeModal();
+      await loadRecipes();
+    }
+
+    async function savePlan() {
+      const res = await fetch("/api/plan", {
+        method:"PUT", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(plan)
+      });
+      if (!res.ok) { alert("Failed to save plan"); return; }
+      alert("Plan saved");
+    }
+
+    function switchTab(which) {
+      const p = (which === "planner");
+      document.getElementById("tabPlanner").classList.toggle("hidden", !p);
+      document.getElementById("tabGroceries").classList.toggle("hidden", p);
+      
+      // Update tab button states
+      document.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.tab === which);
+      });
+      
+      // If switching to groceries and list is empty, update it
+      if (which === "groceries" && groceries.length === 0) {
+        updateGroceries();
+      }
+    }
+    
+    async function loadRecipes() {
+      const q = document.getElementById("search").value || "";
+      const loadingEl = document.getElementById("recipesLoading");
+      const listEl = document.getElementById("recipeList");
+      
+      if (loadingEl) loadingEl.style.display = "flex";
+      
+      try {
+        const res = await fetch("/api/recipes?q=" + encodeURIComponent(q));
+        recipes = await res.json();
+        renderRecipeList();
+      } catch (error) {
+        console.error("Failed to load recipes:", error);
+        listEl.innerHTML = '<div class="text-center text-red-400 py-8">Failed to load recipes</div>';
+      } finally {
+        if (loadingEl) loadingEl.style.display = "none";
+      }
+    }
+
+    function copyGroceries() {
+      const lines = groceries.map(g => {
+        let line = `- ${g.name}: ${g.qty} ${g.unit || ""}`.trim();
+        if (g.note) line += ` (${g.note})`;
+        return line;
+      }).join("\n");
+      navigator.clipboard.writeText(lines).then(() => alert("Copied to clipboard"));
+    }
+
+    function openPrint() {
+      const lines = ["Grocery List", "==============", ""];
+      groceries.forEach(g => {
+        let line = `- ${g.name}: ${g.qty} ${g.unit || ""}`.trim();
+        if (g.note) line += ` (${g.note})`;
+        lines.push(line);
+      });
+      document.getElementById("printText").value = lines.join("\n");
+      show("printModal", true);
+    }
+
+    async function exportRecipes() {
+      const res = await fetch("/api/export");
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "recipes.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function openImport() {
+      document.getElementById("importText").value = "";
+      show("importModal", true);
+    }
+
+    async function doImport() {
+      try {
+        const text = document.getElementById("importText").value || "[]";
+        const payload = JSON.parse(text);
+        const res = await fetch("/api/import", {
+          method:"POST", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || "Failed to import"); return; }
+        show("importModal", false);
+        await loadRecipes();
+        alert(`Imported ${data.count} recipe(s).`);
+      } catch(e) {
+        alert("Invalid JSON");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      // Tabs
+      document.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+      });
+
+      // Buttons
+      document.getElementById("btnNew").addEventListener("click", onNew);
+      document.getElementById("btnEdit").addEventListener("click", onEdit);
+      document.getElementById("btnDelete").addEventListener("click", onDelete);
+      document.getElementById("btnSavePlan").addEventListener("click", savePlan);
+      document.getElementById("btnCopy").addEventListener("click", copyGroceries);
+      document.getElementById("btnPrint").addEventListener("click", openPrint);
+      document.getElementById("btnExportRecipes").addEventListener("click", exportRecipes);
+      document.getElementById("btnImportRecipes").addEventListener("click", openImport);
+
+      // Modal
+      document.getElementById("mCancel").addEventListener("click", () => show("modal", false));
+      document.getElementById("mSave").addEventListener("click", onSaveRecipe);
+
+      // Import modal
+      document.getElementById("impCancel").addEventListener("click", () => show("importModal", false));
+      document.getElementById("impDo").addEventListener("click", doImport);
+
+      // Print modal
+      document.getElementById("printClose").addEventListener("click", () => show("printModal", false));
+
+      // Search debounce
+      let t = null;
+      document.getElementById("search").addEventListener("input", () => {
+        clearTimeout(t);
+        t = setTimeout(loadRecipes, 250);
+      });
+
+      await loadRecipes();
+      await loadPlan();
+    });
+
+    // User menu functions
+    function toggleUserMenu() {
+      const menu = document.getElementById("userMenu");
+      menu.classList.toggle("hidden");
+    }
+
+    async function logout() {
+      try {
+        const response = await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          window.location.href = '/';
+        } else {
+          alert('Error al cerrar sesión');
+        }
+      } catch (error) {
+        alert('Error de conexión');
+      }
+    }
+
+    // Close user menu when clicking outside
+    document.addEventListener('click', function(event) {
+      const userMenu = document.getElementById('userMenu');
+      const userMenuBtn = document.getElementById('userMenuBtn');
+      
+      if (!userMenuBtn.contains(event.target) && !userMenu.contains(event.target)) {
+        userMenu.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
