@@ -849,9 +849,38 @@ def list_groups():
 def create_group():
     """Create a new group"""
     try:
-        # For now, return error until migration is applied
-        # TODO: Apply migration to create tables
-        return jsonify({"error": "Groups feature not yet available. Migration needs to be applied."}), 501
+        current_user = get_current_user()
+        data = request.json or {}
+        
+        # Validate required fields
+        name = (data.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "Group name is required"}), 400
+        
+        # Create group
+        group_data = {
+            'name': name,
+            'description': data.get("description", ""),
+            'owner_id': current_user['id'],
+            'is_public': data.get("is_public", True)
+        }
+        
+        response = supabase.table('groups').insert(group_data).execute()
+        if response.data:
+            group = response.data[0]
+            
+            # Add owner as member
+            member_data = {
+                'group_id': group['id'],
+                'user_id': current_user['id'],
+                'role': 'owner'
+            }
+            supabase.table('group_members').insert(member_data).execute()
+            
+            return jsonify({"ok": True, "group": group})
+        else:
+            return jsonify({"error": "Failed to create group"}), 500
+            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -859,8 +888,26 @@ def create_group():
 def get_group(group_id):
     """Get group details"""
     try:
-        # Temporarily return error until migration is applied
-        return jsonify({"error": "Groups feature not yet available. Migration needs to be applied."}), 501
+        # Get group details
+        response = supabase.table('groups').select('*').eq('id', group_id).single().execute()
+        if not response.data:
+            return jsonify({"error": "Group not found"}), 404
+        
+        group = response.data
+        
+        # Get group members
+        members_response = supabase.table('group_members').select('*, profiles(username, name, avatar_url)').eq('group_id', group_id).execute()
+        members = members_response.data or []
+        
+        # Get recent posts
+        posts_response = supabase.table('group_posts').select('*').eq('group_id', group_id).order('created_at', desc=True).limit(10).execute()
+        posts = posts_response.data or []
+        
+        return jsonify({
+            "group": group,
+            "members": members,
+            "posts": posts
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -869,8 +916,31 @@ def get_group(group_id):
 def join_group(group_id):
     """Join a group"""
     try:
-        # Temporarily return error until migration is applied
-        return jsonify({"error": "Groups feature not yet available. Migration needs to be applied."}), 501
+        current_user = get_current_user()
+        
+        # Check if group exists and is public
+        group_response = supabase.table('groups').select('*').eq('id', group_id).single().execute()
+        if not group_response.data:
+            return jsonify({"error": "Group not found"}), 404
+        
+        group = group_response.data
+        if not group.get('is_public', True):
+            return jsonify({"error": "Cannot join private group"}), 403
+        
+        # Check if already a member
+        existing = supabase.table('group_members').select('*').eq('group_id', group_id).eq('user_id', current_user['id']).execute()
+        if existing.data:
+            return jsonify({"error": "Already a member of this group"}), 400
+        
+        # Join group
+        member_data = {
+            'group_id': group_id,
+            'user_id': current_user['id'],
+            'role': 'member'
+        }
+        response = supabase.table('group_members').insert(member_data).execute()
+        
+        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
