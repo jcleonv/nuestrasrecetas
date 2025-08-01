@@ -760,6 +760,223 @@ def get_feed():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/community/feed", methods=["GET"])
+@require_auth
+def get_community_feed():
+    """Get enhanced community feed with all activities"""
+    try:
+        current_user = get_current_user()
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        offset = (page - 1) * limit
+        
+        # Get community feed using the new database function
+        response = supabase.rpc('get_community_feed', {
+            'input_user_id': current_user['id'],
+            'page_limit': limit,
+            'page_offset': offset
+        }).execute()
+        
+        return jsonify({"activities": response.data or []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ================================================
+# Recipe Forking System (GitHub-like)
+# ================================================
+
+@app.route("/api/recipes/<int:recipe_id>/fork", methods=["POST"])
+@require_auth
+def fork_recipe(recipe_id):
+    """Fork a recipe (like GitHub fork)"""
+    try:
+        current_user = get_current_user()
+        data = request.get_json() or {}
+        
+        # Get original recipe
+        original_recipe = supabase.table('recipes').select('*').eq('id', recipe_id).single().execute()
+        if not original_recipe.data:
+            return jsonify({"error": "Recipe not found"}), 404
+        
+        original = original_recipe.data
+        
+        # Create forked recipe
+        fork_data = {
+            'user_id': current_user['id'],
+            'title': f"{original['title']} (Fork)",
+            'description': original['description'],
+            'category': original['category'],
+            'tags': original['tags'],
+            'servings': original['servings'],
+            'prep_time': original['prep_time'],
+            'cook_time': original['cook_time'],
+            'difficulty': original['difficulty'],
+            'steps': original['steps'],
+            'ingredients_json': original['ingredients_json'],
+            'image_url': original['image_url'],
+            'is_public': data.get('is_public', True),
+            'original_recipe_id': recipe_id
+        }
+        
+        # Create the forked recipe
+        forked_recipe = supabase.table('recipes').insert(fork_data).execute()
+        if not forked_recipe.data:
+            return jsonify({"error": "Failed to create fork"}), 500
+        
+        forked_id = forked_recipe.data[0]['id']
+        
+        # Create fork relationship
+        fork_relationship = {
+            'original_recipe_id': recipe_id,
+            'forked_recipe_id': forked_id,
+            'forked_by_user_id': current_user['id'],
+            'fork_reason': data.get('fork_reason', '')
+        }
+        
+        supabase.table('recipe_forks').insert(fork_relationship).execute()
+        
+        return jsonify({
+            "ok": True, 
+            "message": "Recipe forked successfully! 🍴",
+            "forked_recipe_id": forked_id
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/recipes/<int:recipe_id>/forks", methods=["GET"])
+def get_recipe_forks(recipe_id):
+    """Get all forks of a recipe"""
+    try:
+        response = supabase.table('recipe_forks').select('''
+            *,
+            forked_recipe:recipes!recipe_forks_forked_recipe_id_fkey(id, title, image_url, user_id),
+            forked_by:profiles!recipe_forks_forked_by_user_id_fkey(username, name, avatar_url)
+        ''').eq('original_recipe_id', recipe_id).execute()
+        
+        return jsonify({"forks": response.data or []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ================================================
+# User Posts & Updates
+# ================================================
+
+@app.route("/api/posts", methods=["POST"])
+@require_auth
+def create_user_post():
+    """Create a user post/update"""
+    try:
+        current_user = get_current_user()
+        data = request.get_json()
+        
+        if not data or not data.get('content'):
+            return jsonify({"error": "Content is required"}), 400
+        
+        post_data = {
+            'user_id': current_user['id'],
+            'content': data['content'],
+            'post_type': data.get('post_type', 'update'),
+            'recipe_id': data.get('recipe_id'),
+            'is_public': data.get('is_public', True)
+        }
+        
+        response = supabase.table('user_posts').insert(post_data).execute()
+        
+        if response.data:
+            return jsonify({"ok": True, "message": "Post created! 📝", "post": response.data[0]})
+        else:
+            return jsonify({"error": "Failed to create post"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/<user_id>/posts", methods=["GET"])
+def get_user_posts(user_id):
+    """Get posts by a specific user"""
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        offset = (page - 1) * limit
+        
+        response = supabase.table('user_posts').select('''
+            *,
+            user:profiles!user_posts_user_id_fkey(username, name, avatar_url),
+            recipe:recipes(id, title, image_url)
+        ''').eq('user_id', user_id).eq('is_public', True).order('created_at', desc=True).limit(limit).offset(offset).execute()
+        
+        return jsonify({"posts": response.data or []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ================================================
+# Following/Followers Management
+# ================================================
+
+@app.route("/api/users/<user_id>/followers", methods=["GET"])
+def get_user_followers(user_id):
+    """Get users following this user"""
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        offset = (page - 1) * limit
+        
+        response = supabase.table('user_follows').select('''
+            follower_id,
+            created_at,
+            follower:profiles!user_follows_follower_id_fkey(id, username, name, avatar_url, followers_count, following_count)
+        ''').eq('following_id', user_id).order('created_at', desc=True).limit(limit).offset(offset).execute()
+        
+        followers = [
+            {
+                **follow['follower'],
+                'followed_at': follow['created_at']
+            }
+            for follow in (response.data or [])
+        ]
+        
+        return jsonify({"followers": followers})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/<user_id>/following", methods=["GET"])
+def get_user_following(user_id):
+    """Get users this user is following"""
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        offset = (page - 1) * limit
+        
+        response = supabase.table('user_follows').select('''
+            following_id,
+            created_at,
+            following:profiles!user_follows_following_id_fkey(id, username, name, avatar_url, followers_count, following_count)
+        ''').eq('follower_id', user_id).order('created_at', desc=True).limit(limit).offset(offset).execute()
+        
+        following = [
+            {
+                **follow['following'],
+                'followed_at': follow['created_at']
+            }
+            for follow in (response.data or [])
+        ]
+        
+        return jsonify({"following": following})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/me/followers", methods=["GET"])
+@require_auth
+def get_my_followers():
+    """Get current user's followers"""
+    current_user = get_current_user()
+    return get_user_followers(current_user['id'])
+
+@app.route("/api/me/following", methods=["GET"])
+@require_auth
+def get_my_following():
+    """Get users current user is following"""
+    current_user = get_current_user()
+    return get_user_following(current_user['id'])
+
 # ================================================
 # Groups API Routes
 # ================================================
