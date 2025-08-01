@@ -1,261 +1,183 @@
-# 🍽️ Family Recipe Planner
+# Supabase CLI
 
-A beautiful, production-ready web application for planning your family's weekly meals and managing recipes. Built with Flask, featuring a modern glassmorphism UI design, and ready for deployment with Docker.
+[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
+](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
 
-## ✨ Features
+[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
 
-- 🎨 **Beautiful Modern UI** - Glassmorphism design with smooth animations
-- 📱 **Fully Responsive** - Works perfectly on desktop, tablet, and mobile
-- 🥘 **Recipe Management** - Add, edit, search, and organize your recipes
-- 📅 **Weekly Meal Planning** - Drag-and-drop interface for planning meals
-- 🛒 **Smart Grocery Lists** - Automatically generate and aggregate shopping lists
-- 🔄 **Import/Export** - Backup and share your recipes in JSON format
-- 🐳 **Docker Ready** - One-command deployment with Docker Compose
-- 🗄️ **Supabase Integration** - Cloud database support for production
-- 👥 **Multi-user Support** - Ready for family accounts (optional)
+This repository contains all the functionality for Supabase CLI.
 
-## 🚀 Quick Start (Recommended)
+- [x] Running Supabase locally
+- [x] Managing database migrations
+- [x] Creating and deploying Supabase Functions
+- [x] Generating types directly from your database schema
+- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
 
-The fastest way to get your family recipe planner running:
+## Getting started
 
-### Prerequisites
-- Docker and Docker Compose installed
-- A domain name (optional, for HTTPS)
+### Install the CLI
 
-### 1-Command Deployment
-```bash
-git clone <your-repo-url>
-cd recipes
-./deploy.sh
-```
-
-That's it! Your recipe planner will be available at `http://localhost:8000`
-
-## 💰 Cost-Effective Hosting Options
-
-### Option 1: DigitalOcean Droplet ($4/month)
-- 1GB RAM, 25GB SSD
-- Perfect for family use
-- Includes domain and SSL setup
-
-### Option 2: Railway ($5/month)
-- Automatic deployments from Git
-- Built-in PostgreSQL database
-- Custom domain included
-
-### Option 3: Fly.io (Free tier available)
-- 256MB RAM free tier
-- Automatic scaling
-- Global edge deployment
-
-### Option 4: Self-hosted (Free)
-- Home server or Raspberry Pi
-- Use DuckDNS for free domain
-- Cloudflare for free SSL
-
-## 🛠️ Detailed Setup
-
-### Environment Configuration
-
-1. **Copy the environment template:**
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Edit `.env` with your settings:**
-   ```bash
-   # For cloud database (recommended for production)
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_KEY=your-anon-key
-   
-   # For local SQLite (good for testing)
-   DATABASE_URL=sqlite:///data/recipes.sqlite
-   
-   # Security
-   SECRET_KEY=your-super-secure-secret-key
-   ```
-
-### Supabase Setup (Free Cloud Database)
-
-1. **Create a Supabase account** at https://supabase.com
-2. **Create a new project** (free tier includes 500MB database)
-3. **Get your credentials** from Settings > API
-4. **Add them to your `.env` file**
-
-The app will automatically create the necessary tables.
-
-### Docker Deployment
-
-#### Basic Deployment (SQLite)
-```bash
-# Build and start
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-#### Production Deployment (with Nginx)
-```bash
-# Start with reverse proxy
-docker-compose --profile with-nginx up -d
-
-# Includes rate limiting and SSL termination
-```
-
-### Manual Installation
-
-If you prefer not to use Docker:
+Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
 
 ```bash
-# 1. Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Initialize database
-python database.py
-
-# 4. Run application
-python app.py  # Development
-# OR
-gunicorn --bind 0.0.0.0:8000 app:app  # Production
+npm i supabase --save-dev
 ```
 
-## 🌐 Domain and SSL Setup
-
-### Free Domain Options
-- **DuckDNS** - Free dynamic DNS
-- **Freenom** - Free domain names (.tk, .ml, .ga)
-- **Cloudflare** - Free SSL certificates and CDN
-
-### SSL Certificate (Free with Let's Encrypt)
-```bash
-# Install certbot
-sudo apt install certbot python3-certbot-nginx
-
-# Get certificate
-sudo certbot --nginx -d yourdomain.com
-
-# Auto-renewal
-sudo crontab -e
-# Add: 0 12 * * * /usr/bin/certbot renew --quiet
-```
-
-## 📊 Monitoring and Backup
-
-### Health Monitoring
-The app includes a health check endpoint at `/health`:
+To install the beta release channel:
 
 ```bash
-curl http://localhost:8000/health
+npm i supabase@beta --save-dev
 ```
 
-### Backup Your Data
+When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
+
+```
+NODE_OPTIONS=--no-experimental-fetch yarn add supabase
+```
+
+> **Note**
+For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
+
+<details>
+  <summary><b>macOS</b></summary>
+
+  Available via [Homebrew](https://brew.sh). To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To install the beta release channel:
+  
+  ```sh
+  brew install supabase/tap/supabase-beta
+  brew link --overwrite supabase-beta
+  ```
+  
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Windows</b></summary>
+
+  Available via [Scoop](https://scoop.sh). To install:
+
+  ```powershell
+  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+  scoop install supabase
+  ```
+
+  To upgrade:
+
+  ```powershell
+  scoop update supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Linux</b></summary>
+
+  Available via [Homebrew](https://brew.sh) and Linux packages.
+
+  #### via Homebrew
+
+  To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+
+  #### via Linux packages
+
+  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
+
+  ```sh
+  sudo apk add --allow-untrusted <...>.apk
+  ```
+
+  ```sh
+  sudo dpkg -i <...>.deb
+  ```
+
+  ```sh
+  sudo rpm -i <...>.rpm
+  ```
+
+  ```sh
+  sudo pacman -U <...>.pkg.tar.zst
+  ```
+</details>
+
+<details>
+  <summary><b>Other Platforms</b></summary>
+
+  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
+
+  ```sh
+  go install github.com/supabase/cli@latest
+  ```
+
+  Add a symlink to the binary in `$PATH` for easier access:
+
+  ```sh
+  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
+  ```
+
+  This works on other non-standard Linux distros.
+</details>
+
+<details>
+  <summary><b>Community Maintained Packages</b></summary>
+
+  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
+  To install in your working directory:
+
+  ```bash
+  pkgx install supabase
+  ```
+
+  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
+</details>
+
+### Run the CLI
+
 ```bash
-# Create backup
-./deploy.sh backup
-
-# Backup is saved to backups/YYYYMMDD_HHMMSS/
+supabase bootstrap
 ```
 
-### Automated Backups
-Add to your crontab for daily backups:
-```bash
-0 2 * * * cd /path/to/your/app && ./deploy.sh backup
-```
-
-## 🔧 Management Commands
+Or using npx:
 
 ```bash
-# View application logs
-./deploy.sh logs
-
-# Stop the application
-./deploy.sh stop
-
-# Restart the application
-./deploy.sh restart
-
-# Create backup
-./deploy.sh backup
-
-# Update application
-git pull
-docker-compose build --no-cache
-docker-compose up -d
+npx supabase bootstrap
 ```
 
-## 🏗️ Architecture
+The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
 
-- **Frontend**: Modern HTML5 + TailwindCSS + Vanilla JS
-- **Backend**: Flask (Python) with SQLAlchemy ORM
-- **Database**: SQLite (local) or PostgreSQL (Supabase)
-- **Deployment**: Docker + Docker Compose
-- **Reverse Proxy**: Nginx with rate limiting
-- **Security**: HTTPS, security headers, CORS protection
+## Docs
 
-## 🔒 Security Features
+Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
 
-- HTTPS/SSL termination
-- Rate limiting (10 req/sec for API, 30 req/sec for static files)
-- Security headers (XSS, CSRF, clickjacking protection)
-- Input validation and sanitization
-- Non-root Docker container
-- Environment variable configuration
+## Breaking changes
 
-## 📱 Mobile Support
+We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
 
-- Responsive design for all screen sizes
-- Touch-friendly interface
-- iOS/Android web app capabilities
-- Optimized for mobile drag-and-drop
+However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
 
-## 🎯 Production Checklist
+## Developing
 
-- [ ] Set strong `SECRET_KEY` in production
-- [ ] Configure Supabase or PostgreSQL database
-- [ ] Set up domain name and SSL certificate
-- [ ] Configure automated backups
-- [ ] Set up monitoring (health checks)
-- [ ] Configure email notifications (optional)
-- [ ] Set up user authentication (if multi-user)
+To run from source:
 
-## 💡 Tips for Families
-
-1. **Start Simple**: Begin with SQLite, upgrade to Supabase when needed
-2. **Backup Regularly**: Use the built-in backup command weekly
-3. **Organize Recipes**: Use categories and tags effectively
-4. **Mobile First**: The interface works great on phones and tablets
-5. **Share Access**: Multiple family members can access the same deployment
-
-## 🤝 Contributing
-
-This is designed to be a self-contained family application, but contributions are welcome:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📞 Support
-
-For issues or questions:
-- Check the health endpoint: `/health`
-- Review the logs: `./deploy.sh logs`
-- Ensure all environment variables are set correctly
-- Verify Docker and Docker Compose are running
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-**Enjoy planning your family meals! 🍽️**
+```sh
+# Go >= 1.22
+go run . help
+```
