@@ -390,10 +390,19 @@
 
       // Update avatar
       const avatar = document.getElementById('group-avatar');
+      // Clear existing content
+      avatar.innerHTML = '';
+      
       if (group.avatar_url) {
-        avatar.innerHTML = `<img src="${group.avatar_url}" alt="${group.name}" class="w-full h-full rounded-full object-cover">`;
+        const img = document.createElement('img');
+        img.src = group.avatar_url;
+        img.alt = group.name || 'Group';
+        img.className = 'w-full h-full rounded-full object-cover';
+        avatar.appendChild(img);
       } else {
-        avatar.innerHTML = `<span>${group.name.charAt(0).toUpperCase()}</span>`;
+        const span = document.createElement('span');
+        span.textContent = (group.name || 'G').charAt(0).toUpperCase();
+        avatar.appendChild(span);
       }
 
       // Update privacy badge

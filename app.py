@@ -4,7 +4,7 @@ NuestrasRecetas.club - Pure Supabase Implementation
 Flask app using Supabase directly without SQLAlchemy
 """
 
-import json
+import html\nimport json\nimport re
 import os
 from collections import defaultdict
 from typing import Optional, Dict, Any
@@ -14,7 +14,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from flask_cors import CORS
 from supabase import create_client, Client
 
-from config import Config
+from config import Config\n\n# Security helper functions\ndef sanitize_input(text: str, max_length: int = 500) -> str:\n    \"\"\"Sanitize user input by removing HTML tags and limiting length\"\"\"\n    if not text:\n        return \"\"\n    # Remove HTML tags and decode HTML entities\n    sanitized = html.escape(text.strip())\n    # Limit length\n    if len(sanitized) > max_length:\n        sanitized = sanitized[:max_length]\n    return sanitized
 
 config = Config()
 
@@ -85,7 +85,7 @@ def try_aggregate(items):
 # Flask app
 app = Flask(__name__)
 app.config.from_object(config)
-CORS(app)
+# Configure CORS with specific origins for production security\nallowed_origins = [\n    \"https://nuestrasrecetas.club\",\n    \"https://www.nuestrasrecetas.club\"\n]\n\nif config.FLASK_ENV == 'development':\n    allowed_origins.extend([\"http://localhost:3000\", \"http://127.0.0.1:3000\"])\n\nCORS(app, \n     origins=allowed_origins,\n     supports_credentials=True,\n     methods=[\"GET\", \"POST\", \"PUT\", \"DELETE\", \"OPTIONS\"],\n     allow_headers=[\"Content-Type\", \"Authorization\"])
 
 # Initialize Supabase client
 supabase: Optional[Client] = None
@@ -111,15 +111,6 @@ def get_current_user():
         return None
     
     try:
-        # Handle test sessions
-        if access_token == 'test-token':
-            # For testing - directly get user profile
-            profile_response = supabase.table('profiles').select('*').eq('id', user_id).execute()
-            if profile_response.data and len(profile_response.data) > 0:
-                return profile_response.data[0]
-            else:
-                return None
-        
         # Set the auth token for this request
         supabase.auth.set_session(access_token, session.get('supabase_refresh_token'))
         
@@ -228,9 +219,25 @@ def signup():
     
     if not all([name, username, email, password]):
         return jsonify({"error": "Todos los campos son requeridos"}), 400
-    
-    if len(password) < 6:
-        return jsonify({"error": "La contraseña debe tener al menos 6 caracteres"}), 400
+        
+    # Enhanced input validation
+    if len(name.strip()) > 100:
+        return jsonify({"error": "El nombre no puede exceder 100 caracteres"}), 400
+        
+    if len(username.strip()) > 50:
+        return jsonify({"error": "El nombre de usuario no puede exceder 50 caracteres"}), 400
+        
+    if not re.match(r'^[a-zA-Z0-9_]+$', username):
+        return jsonify({"error": "El nombre de usuario solo puede contener letras, números y guiones bajos"}), 400
+        
+    if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+        return jsonify({"error": "Formato de email inválido"}), 400
+        
+    if len(password) < 8:
+        return jsonify({"error": "La contraseña debe tener al menos 8 caracteres"}), 400
+        
+    if not re.search(r'[A-Za-z]', password) or not re.search(r'\d', password):
+        return jsonify({"error": "La contraseña debe contener al menos una letra y un número"}), 400
     
     try:
         # Check if username is already taken
@@ -360,36 +367,6 @@ def get_current_user_info():
     
     return jsonify({"user": current_user})
 
-# Temporary testing endpoint - REMOVE IN PRODUCTION
-@app.route("/api/auth/test-login", methods=["POST"])
-def test_login():
-    """Temporary endpoint for testing - bypasses email confirmation"""
-    if not supabase:
-        return jsonify({"error": "Supabase no configurado"}), 500
-    
-    # Use the existing confirmed user for testing
-    user_id = "81c61a80-4e61-4cf6-b699-040db00b5e96"  # jcleonvil user
-    
-    try:
-        # Get user profile from Supabase profiles table
-        print(f"Debug: Looking for user with ID: {user_id}")
-        profile_response = supabase.table('profiles').select('*').eq('id', user_id).execute()
-        print(f"Debug: Profile response: {profile_response}")
-        
-        if profile_response.data and len(profile_response.data) > 0:
-            # Create a mock session for testing
-            session['user_id'] = user_id
-            session['supabase_access_token'] = 'test-token'
-            session['supabase_refresh_token'] = 'test-refresh'
-            
-            return jsonify({
-                "message": "Test login successful",
-                "user": profile_response.data[0]
-            })
-        else:
-            return jsonify({"error": "User not found"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 # Recipe Routes
 @app.route("/api/recipes", methods=["GET"])
@@ -470,6 +447,38 @@ def create_recipe():
         if not title:
             return jsonify({"error": "Title required"}), 400
         
+        # Enhanced input validation for recipe creation
+        if len(title) > 200:
+            return jsonify({"error": "Title cannot exceed 200 characters"}), 400
+            
+        category = (data.get("category") or "").strip()
+        if len(category) > 100:
+            return jsonify({"error": "Category cannot exceed 100 characters"}), 400
+            
+        tags = (data.get("tags") or "").strip()
+        if len(tags) > 500:
+            return jsonify({"error": "Tags cannot exceed 500 characters"}), 400
+            
+        instructions = (data.get("instructions") or "").strip()
+        if len(instructions) > 5000:
+            return jsonify({"error": "Instructions cannot exceed 5000 characters"}), 400
+            
+        # Validate servings is reasonable
+        servings = int(data.get("servings", 2))
+        if servings < 1 or servings > 100:
+            return jsonify({"error": "Servings must be between 1 and 100"}), 400
+            
+        # Validate ingredients
+        ingredients = data.get("ingredients", [])
+        if len(ingredients) > 50:
+            return jsonify({"error": "Recipe cannot have more than 50 ingredients"}), 400
+            
+        for ingredient in ingredients:
+            if isinstance(ingredient, dict):
+                ingredient_name = str(ingredient.get('name', '')).strip()
+                if len(ingredient_name) > 200:
+                    return jsonify({"error": "Ingredient name cannot exceed 200 characters"}), 400
+        
         current_user = get_current_user()
         
         # Check for existing title
@@ -477,14 +486,14 @@ def create_recipe():
         if existing.data:
             return jsonify({"error": "Title already exists"}), 400
         
-        # Create recipe
+        # Create recipe with sanitized data
         recipe_data = {
             'user_id': current_user['id'],
-            'title': title,
-            'category': data.get("category", ""),
-            'tags': data.get("tags", ""),
-            'servings': int(data.get("servings", 2)),
-            'ingredients_json': json.dumps(data.get("ingredients", []), ensure_ascii=False),
+            'title': sanitize_input(title, 200),
+            'category': sanitize_input(category, 100),
+            'tags': sanitize_input(tags, 500),
+            'servings': servings,
+            'ingredients_json': json.dumps(ingredients, ensure_ascii=False),
             'steps': data.get("steps", "")
         }
         
@@ -714,18 +723,43 @@ def update_profile():
         current_user = get_current_user()
         data = request.json or {}
         
-        # Validate required fields
+        # Enhanced input validation for profile updates
         if 'username' in data and data['username']:
+            username = str(data['username']).strip()
+            if len(username) > 50:
+                return jsonify({"error": "Username cannot exceed 50 characters"}), 400
+            if not re.match(r'^[a-zA-Z0-9_]+$', username):
+                return jsonify({"error": "Username can only contain letters, numbers, and underscores"}), 400
             # Check if username is already taken
-            existing = supabase.table('profiles').select('id').eq('username', data['username']).neq('id', current_user['id']).execute()
+            existing = supabase.table('profiles').select('id').eq('username', username).neq('id', current_user['id']).execute()
             if existing.data:
                 return jsonify({"error": "Username already taken"}), 400
         
-        # Update profile
+        if 'name' in data:
+            name = str(data['name']).strip()
+            if len(name) > 100:
+                return jsonify({"error": "Name cannot exceed 100 characters"}), 400
+        
+        if 'bio' in data:
+            bio = str(data['bio']).strip()
+            if len(bio) > 500:
+                return jsonify({"error": "Bio cannot exceed 500 characters"}), 400
+        
+        if 'avatar_url' in data:
+            avatar_url = str(data['avatar_url']).strip()
+            if len(avatar_url) > 500:
+                return jsonify({"error": "Avatar URL cannot exceed 500 characters"}), 400
+        
+        # Update profile with sanitized data
         update_data = {}
         for field in ['username', 'name', 'bio', 'avatar_url', 'is_public']:
             if field in data:
-                update_data[field] = data[field]
+                if field in ['username', 'name', 'bio', 'avatar_url']:
+                    # Sanitize text fields
+                    max_lengths = {'username': 50, 'name': 100, 'bio': 500, 'avatar_url': 500}
+                    update_data[field] = sanitize_input(str(data[field]), max_lengths[field])
+                else:
+                    update_data[field] = data[field]
         
         if update_data:
             response = supabase.table('profiles').update(update_data).eq('id', current_user['id']).execute()

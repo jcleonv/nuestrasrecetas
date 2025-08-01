@@ -277,10 +277,19 @@
 
       // Update avatar
       const avatar = document.getElementById('profile-avatar');
+      // Clear existing content
+      avatar.innerHTML = '';
+      
       if (profile.avatar_url) {
-        avatar.innerHTML = `<img src="${profile.avatar_url}" alt="${profile.name}" class="w-full h-full rounded-full object-cover">`;
+        const img = document.createElement('img');
+        img.src = profile.avatar_url;
+        img.alt = profile.name || 'Profile';
+        img.className = 'w-full h-full rounded-full object-cover';
+        avatar.appendChild(img);
       } else {
-        avatar.innerHTML = `<span>${profile.name.charAt(0).toUpperCase()}</span>`;
+        const span = document.createElement('span');
+        span.textContent = (profile.name || 'U').charAt(0).toUpperCase();
+        avatar.appendChild(span);
       }
 
       // Show/hide follow button

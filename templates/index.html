@@ -733,7 +733,7 @@
       d.appendChild(left);
       
       const badge = el("div","badge flex items-center gap-1 flex-shrink-0");
-      badge.innerHTML = `<i class="fas fa-users text-xs"></i> ${r.servings || 2}`;
+      const icon = document.createElement('i');\n      icon.className = 'fas fa-users text-xs';\n      badge.appendChild(icon);\n      badge.appendChild(document.createTextNode(' ' + (r.servings || 2)));
       d.appendChild(badge);
       
       d.addEventListener("click", () => {
@@ -772,7 +772,7 @@
         // Day header
         const head = el("div","glass-panel p-4 flex items-center justify-between");
         const dayTitle = el("div","font-bold text-lg flex items-center gap-2");
-        dayTitle.innerHTML = `<i class="fas fa-calendar-day text-primary"></i> ${day}`;
+        const dayIcon = document.createElement('i');\n        dayIcon.className = 'fas fa-calendar-day text-primary';\n        dayTitle.appendChild(dayIcon);\n        dayTitle.appendChild(document.createTextNode(' ' + day));
         head.appendChild(dayTitle);
         
         const btnClr = el("button","btn btn-secondary text-sm px-3 py-1");
@@ -1183,7 +1183,7 @@
           // Update avatar if available
           const avatarElement = document.getElementById('user-avatar');
           if (userData.user.avatar_url) {
-            avatarElement.innerHTML = `<img src="${userData.user.avatar_url}" alt="${userData.user.name}" class="w-full h-full rounded-full object-cover">`;
+            avatarElement.innerHTML = '';\n            const img = document.createElement('img');\n            img.src = userData.user.avatar_url;\n            img.alt = userData.user.name || 'User avatar';\n            img.className = 'w-full h-full rounded-full object-cover';\n            avatarElement.appendChild(img);
           }
         }
       } catch (error) {

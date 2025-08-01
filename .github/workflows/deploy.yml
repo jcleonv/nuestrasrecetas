@@ -5,9 +5,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
     
     steps:
     - name: Checkout code
@@ -18,9 +22,14 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
     
+    - name: Add server to known hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.DIGITALOCEAN_IP }} >> ~/.ssh/known_hosts
+    
     - name: Deploy to DigitalOcean
       run: |
-        ssh -o StrictHostKeyChecking=no root@${{ secrets.DIGITALOCEAN_IP }} << 'EOF'
+        ssh -o UserKnownHostsFile=~/.ssh/known_hosts root@${{ secrets.DIGITALOCEAN_IP }} << 'EOF'
           cd /opt/nuestrasrecetas
           git pull origin main
           
