@@ -158,6 +158,8 @@
           <div class="relative">
             <input type="text" id="search-input" placeholder="Search users..." class="input pr-10">
             <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-text-muted"></i>
+            <!-- Search Results Dropdown -->
+            <div id="user-search-results" class="absolute top-full left-0 right-0 bg-dark-surface border border-dark-border rounded-lg mt-2 max-h-96 overflow-y-auto z-50 hidden"></div>
           </div>
           <button class="btn" onclick="showCreateGroupModal()">
             <i class="fas fa-plus"></i>Create Group
@@ -313,6 +315,15 @@
       document.getElementById('create-group-form').addEventListener('submit', (e) => {
         e.preventDefault();
         createGroup();
+      });
+
+      // Hide search results when clicking outside
+      document.addEventListener('click', (e) => {
+        const searchContainer = document.querySelector('.relative');
+        const searchResults = document.getElementById('user-search-results');
+        if (searchResults && !searchContainer.contains(e.target)) {
+          searchResults.classList.add('hidden');
+        }
       });
     }
 
@@ -528,36 +539,145 @@
     }
 
     function searchUsers(query) {
+      const searchResultsContainer = document.getElementById('user-search-results');
+      
       if (query.length < 2) {
+        if (searchResultsContainer) {
+          searchResultsContainer.classList.add('hidden');
+          searchResultsContainer.innerHTML = '';
+        }
         return;
+      }
+
+      // Show loading state
+      if (searchResultsContainer) {
+        searchResultsContainer.classList.remove('hidden');
+        searchResultsContainer.innerHTML = `
+          <div class="p-4 text-center">
+            <i class="fas fa-spinner fa-spin text-primary"></i>
+            <p class="text-dark-text-muted mt-2">Searching cooks...</p>
+          </div>
+        `;
       }
 
       fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
         .then(response => response.json())
         .then(data => {
-          // You could display search results in a dropdown or modal
-          console.log('Search results:', data.users);
+          displaySearchResults(data.users || []);
         })
         .catch(error => {
           console.error('Search failed:', error);
+          if (searchResultsContainer) {
+            searchResultsContainer.innerHTML = `
+              <div class="text-center py-4 text-red-400">
+                <i class="fas fa-exclamation-triangle mb-2"></i>
+                <p>Search failed. Please try again.</p>
+              </div>
+            `;
+          }
         });
     }
 
-    function followUser(userId) {
-      fetch(`/api/follow/${userId}`, { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-          if (data.ok) {
-            // Update UI to show followed state
-            loadSuggestedUsers();
-          } else {
-            alert(data.error || 'Failed to follow user');
-          }
-        })
-        .catch(error => {
-          console.error('Follow failed:', error);
-          alert('Failed to follow user');
+    function displaySearchResults(users) {
+      const container = document.getElementById('user-search-results');
+      if (!container) return;
+      
+      container.classList.remove('hidden');
+      
+      if (users.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8">
+            <i class="fas fa-search text-4xl text-dark-text-muted mb-4"></i>
+            <p class="text-dark-text-muted">No cooks found</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = users.map(user => `
+        <div class="flex items-center justify-between p-4 hover:bg-dark-surface-light rounded-lg transition-colors">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-bold">
+              ${user.avatar_url ? 
+                `<img src="${user.avatar_url}" alt="${user.name}" class="w-full h-full rounded-full object-cover">` :
+                (user.name || user.username || 'U').charAt(0).toUpperCase()
+              }
+            </div>
+            <div>
+              <div class="text-white font-medium">${user.name || user.username}</div>
+              <div class="text-dark-text-muted text-sm">@${user.username}</div>
+              <div class="text-dark-text-muted text-xs">
+                ${user.followers_count || 0} followers • ${user.following_count || 0} following
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${user.follows_back ? '<span class="text-xs text-primary bg-primary/20 px-2 py-1 rounded">Follows you</span>' : ''}
+            <button 
+              onclick="toggleFollowCommunity('${user.id}', ${user.is_following})" 
+              class="btn ${user.is_following ? 'btn-secondary' : ''} text-sm px-4 py-2"
+              id="follow-btn-${user.id}">
+              <i class="fas fa-${user.is_following ? 'user-minus' : 'user-plus'} mr-1"></i>
+              ${user.is_following ? 'Unfollow' : 'Cook Together'}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function toggleFollowCommunity(userId, isCurrentlyFollowing) {
+      const btn = document.getElementById(`follow-btn-${userId}`);
+      if (!btn) return;
+      
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Loading...';
+      btn.disabled = true;
+
+      try {
+        const endpoint = isCurrentlyFollowing ? 'unfollow' : 'follow';
+        const response = await fetch(`/api/users/${userId}/${endpoint}`, {
+          method: 'POST'
         });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          // Update button state
+          const newIsFollowing = !isCurrentlyFollowing;
+          btn.className = `btn ${newIsFollowing ? 'btn-secondary' : ''} text-sm px-4 py-2`;
+          btn.innerHTML = `
+            <i class="fas fa-${newIsFollowing ? 'user-minus' : 'user-plus'} mr-1"></i>
+            ${newIsFollowing ? 'Unfollow' : 'Cook Together'}
+          `;
+          btn.onclick = () => toggleFollowCommunity(userId, newIsFollowing);
+          
+          // Show success message
+          if (data.message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+            toast.textContent = data.message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+          }
+          
+          // Reload suggested users to reflect changes
+          loadSuggestedUsers();
+        } else {
+          btn.innerHTML = originalText;
+          alert(data.error || 'Action failed');
+        }
+      } catch (error) {
+        console.error('Follow/unfollow failed:', error);
+        btn.innerHTML = originalText;
+        alert('Action failed');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Keep old function for compatibility but update to use new API
+    function followUser(userId) {
+      toggleFollowCommunity(userId, false);
     }
 
     function showCreateGroupModal() {
