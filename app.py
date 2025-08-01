@@ -16,6 +16,8 @@ from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
 from supabase import create_client, Client
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 from config import Config
 
@@ -96,6 +98,18 @@ def try_aggregate(items):
                 result.append((name_key, q, unit_norm))
     result.sort(key=lambda x: x[0])
     return result
+
+# Initialize Sentry for error monitoring
+sentry_dsn = os.getenv('SENTRY_DSN')
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[FlaskIntegration(transaction_style="endpoint")],
+        traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
+        profiles_sample_rate=0.1,  # 10% for profiling
+        environment=os.getenv('ENVIRONMENT', 'production'),
+        release=os.getenv('SENTRY_RELEASE', 'unknown'),
+    )
 
 # Flask app
 app = Flask(__name__)
@@ -218,6 +232,7 @@ def health_check():
                 "status": "healthy",
                 "database": "connected",
                 "supabase": "enabled",
+                "sentry": "enabled" if os.getenv('SENTRY_DSN') else "disabled",
                 "profiles_count": response.count
             })
         else:
@@ -1395,33 +1410,7 @@ def get_recipe_contributors(recipe_id):
 # User Posts & Updates
 # ================================================
 
-@app.route("/api/posts", methods=["POST"])
-@require_auth
-def create_user_post():
-    """Create a user post/update"""
-    try:
-        current_user = get_current_user()
-        data = request.get_json()
-        
-        if not data or not data.get('content'):
-            return jsonify({"error": "Content is required"}), 400
-        
-        post_data = {
-            'user_id': current_user['id'],
-            'content': data['content'],
-            'post_type': data.get('post_type', 'update'),
-            'recipe_id': data.get('recipe_id'),
-            'is_public': data.get('is_public', True)
-        }
-        
-        response = supabase.table('user_posts').insert(post_data).execute()
-        
-        if response.data:
-            return jsonify({"ok": True, "message": "Post created! 📝", "post": response.data[0]})
-        else:
-            return jsonify({"error": "Failed to create post"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# Duplicate function removed - using the more complete version below
 
 @app.route("/api/users/<user_id>/posts", methods=["GET"])
 def get_user_posts(user_id):
@@ -2201,6 +2190,16 @@ def compare_recipes(recipe_id, other_recipe_id):
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/sentry-test")
+def sentry_test():
+    """Test endpoint to trigger a Sentry error for testing"""
+    if not os.getenv('SENTRY_DSN'):
+        return jsonify({"error": "Sentry not configured"}), 400
+    
+    # Trigger a test error
+    division_by_zero = 1 / 0
+    return jsonify({"message": "This should never be reached"})
 
 
 if __name__ == "__main__":

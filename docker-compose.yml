@@ -11,6 +11,8 @@ services:
     environment:
       # Override any defaults here if needed
       - FLASK_ENV=production
+      - ENVIRONMENT=production
+      - SENTRY_RELEASE=${GITHUB_SHA:-unknown}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
