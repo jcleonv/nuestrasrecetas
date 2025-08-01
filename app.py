@@ -735,59 +735,9 @@ def update_profile():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/users/search", methods=["GET"])
-def search_users():
-    """Search for users by username or name"""
-    try:
-        query = request.args.get('q', '').strip()
-        if not query or len(query) < 2:
-            return jsonify({"users": []})
-        
-        # Search in profiles table
-        response = supabase.table('profiles').select('*').or_(f'username.ilike.%{query}%,name.ilike.%{query}%').eq('is_public', True).limit(10).execute()
-        
-        return jsonify({"users": response.data or []})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route("/api/follow/<user_id>", methods=["POST"])
-@require_auth
-def follow_user(user_id):
-    """Follow a user"""
-    try:
-        current_user = get_current_user()
-        
-        if current_user['id'] == user_id:
-            return jsonify({"error": "Cannot follow yourself"}), 400
-        
-        # Check if already following
-        existing = supabase.table('user_follows').select('*').eq('follower_id', current_user['id']).eq('followed_id', user_id).execute()
-        if existing.data:
-            return jsonify({"error": "Already following this user"}), 400
-        
-        # Create follow relationship
-        response = supabase.table('user_follows').insert({
-            'follower_id': current_user['id'],
-            'followed_id': user_id
-        }).execute()
-        
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route("/api/follow/<user_id>", methods=["DELETE"])
-@require_auth
-def unfollow_user(user_id):
-    """Unfollow a user"""
-    try:
-        current_user = get_current_user()
-        
-        # Delete follow relationship
-        response = supabase.table('user_follows').delete().eq('follower_id', current_user['id']).eq('followed_id', user_id).execute()
-        
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/feed", methods=["GET"])
 @require_auth

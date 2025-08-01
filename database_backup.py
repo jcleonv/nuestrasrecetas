@@ -13,7 +13,7 @@ config = Config()
 # Association tables for many-to-many relationships
 user_follows = Table('user_follows', Base.metadata,
     Column('follower_id', UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True),
-    Column('followed_id', UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True)
+    Column('following_id', UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True)
 )
 
 recipe_likes = Table('recipe_likes', Base.metadata,
@@ -44,7 +44,7 @@ class User(Base):
     following = relationship(
         "User", secondary=user_follows,
         primaryjoin=id == user_follows.c.follower_id,
-        secondaryjoin=id == user_follows.c.followed_id,
+        secondaryjoin=id == user_follows.c.following_id,
         backref="followers"
     )
     
