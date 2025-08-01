@@ -3,35 +3,78 @@
 -- Description: Add tables for recipe forking functionality and user posts/activity feed
 -- Fixed: Added IF NOT EXISTS and proper policy cleanup
 
--- Create recipe_forks table for tracking recipe forking relationships
-CREATE TABLE IF NOT EXISTS public.recipe_forks (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    original_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
-    forked_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
-    forked_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Ensure a recipe can't be forked multiple times by the same user from the same original
-    UNIQUE(original_recipe_id, forked_by)
-);
+-- Create or alter recipe_forks table for tracking recipe forking relationships
+-- First, check if table exists and what columns it has
+DO $$
+BEGIN
+    -- Create table if it doesn't exist
+    IF NOT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'recipe_forks') THEN
+        CREATE TABLE public.recipe_forks (
+            id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+            original_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
+            forked_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
+            forked_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            
+            -- Ensure a recipe can't be forked multiple times by the same user from the same original
+            UNIQUE(original_recipe_id, forked_by)
+        );
+    ELSE
+        -- Table exists, check if we need to add missing columns
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'forked_by') THEN
+            -- If forked_by doesn't exist, assume it might be named differently
+            -- Check for common alternative names and add the column
+            IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'user_id') THEN
+                ALTER TABLE public.recipe_forks RENAME COLUMN user_id TO forked_by;
+            ELSIF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'created_by') THEN
+                ALTER TABLE public.recipe_forks RENAME COLUMN created_by TO forked_by;
+            ELSE
+                ALTER TABLE public.recipe_forks ADD COLUMN forked_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE;
+            END IF;
+        END IF;
+        
+        -- Ensure other required columns exist
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'original_recipe_id') THEN
+            ALTER TABLE public.recipe_forks ADD COLUMN original_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE;
+        END IF;
+        
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'forked_recipe_id') THEN
+            ALTER TABLE public.recipe_forks ADD COLUMN forked_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE;
+        END IF;
+        
+        IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'created_at') THEN
+            ALTER TABLE public.recipe_forks ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+        END IF;
+    END IF;
+END
+$$;
 
 -- Create indexes for performance (with IF NOT EXISTS equivalent)
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_original') THEN
-        CREATE INDEX idx_recipe_forks_original ON public.recipe_forks(original_recipe_id);
+    -- Only create indexes if the columns exist
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'original_recipe_id') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_original') THEN
+            CREATE INDEX idx_recipe_forks_original ON public.recipe_forks(original_recipe_id);
+        END IF;
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_forked') THEN
-        CREATE INDEX idx_recipe_forks_forked ON public.recipe_forks(forked_recipe_id);
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'forked_recipe_id') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_forked') THEN
+            CREATE INDEX idx_recipe_forks_forked ON public.recipe_forks(forked_recipe_id);
+        END IF;
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_user') THEN
-        CREATE INDEX idx_recipe_forks_user ON public.recipe_forks(forked_by);
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'forked_by') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_user') THEN
+            CREATE INDEX idx_recipe_forks_user ON public.recipe_forks(forked_by);
+        END IF;
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_created_at') THEN
-        CREATE INDEX idx_recipe_forks_created_at ON public.recipe_forks(created_at);
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'created_at') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_created_at') THEN
+            CREATE INDEX idx_recipe_forks_created_at ON public.recipe_forks(created_at);
+        END IF;
     END IF;
 END
 $$;

@@ -2191,6 +2191,86 @@ def compare_recipes(recipe_id, other_recipe_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/recipes/<int:recipe_id>/star", methods=["POST"])
+@require_auth
+def star_recipe(recipe_id):
+    """Star (like) a recipe"""
+    try:
+        current_user = get_current_user()
+        
+        # Check if recipe exists
+        recipe_response = supabase.table('recipes').select('*').eq('id', recipe_id).execute()
+        if not recipe_response.data:
+            return jsonify({"error": "Recipe not found"}), 404
+        
+        # Check if already starred
+        existing = supabase.table('recipe_likes').select('id').eq('recipe_id', recipe_id).eq('user_id', current_user['id']).execute()
+        if existing.data:
+            return jsonify({"error": "Recipe already starred"}), 400
+        
+        # Create star
+        star_data = {
+            'recipe_id': recipe_id,
+            'user_id': current_user['id']
+        }
+        
+        response = supabase.table('recipe_likes').insert(star_data).execute()
+        
+        if response.data:
+            return jsonify({"ok": True, "message": "Recipe starred! ⭐"})
+        else:
+            return jsonify({"error": "Failed to star recipe"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/recipes/<int:recipe_id>/unstar", methods=["POST"])
+@require_auth
+def unstar_recipe(recipe_id):
+    """Unstar (unlike) a recipe"""
+    try:
+        current_user = get_current_user()
+        
+        # Remove star
+        response = supabase.table('recipe_likes').delete().eq('recipe_id', recipe_id).eq('user_id', current_user['id']).execute()
+        
+        return jsonify({"ok": True, "message": "Recipe unstarred"})
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/stats", methods=["GET"])
+def get_dashboard_stats():
+    """Get real-time dashboard statistics"""
+    try:
+        # Get total recipes count
+        recipes_response = supabase.table('recipes').select('id', count='exact').execute()
+        total_recipes = recipes_response.count or 0
+        
+        # Get total forks count
+        forks_response = supabase.table('recipe_forks').select('id', count='exact').execute()
+        total_forks = forks_response.count or 0
+        
+        # Get active users (users who have created recipes or posted recently)
+        active_users_response = supabase.table('profiles').select('id', count='exact').execute()
+        active_cooks = active_users_response.count or 0
+        
+        # Get recipes created today
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        today_recipes_response = supabase.table('recipes').select('id', count='exact').gte('created_at', today).execute()
+        recipes_today = today_recipes_response.count or 0
+        
+        return jsonify({
+            "total_recipes": total_recipes,
+            "total_forks": total_forks,
+            "active_cooks": active_cooks,
+            "recipes_today": recipes_today
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/sentry-test")
 def sentry_test():
     """Test endpoint to trigger a Sentry error for testing"""

@@ -690,19 +690,19 @@
         <!-- GitHub-style Stats -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-2xl mx-auto">
           <div class="text-center">
-            <div class="text-2xl font-bold text-primary mb-1" id="total-recipes">5,247</div>
+            <div class="text-2xl font-bold text-primary mb-1" id="total-recipes">-</div>
             <div class="text-sm text-dark-text-muted"><i class="fas fa-book mr-1"></i>Recipes</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl font-bold text-primary mb-1" id="total-forks">12,583</div>
+            <div class="text-2xl font-bold text-primary mb-1" id="total-forks">-</div>
             <div class="text-sm text-dark-text-muted"><i class="fas fa-code-branch mr-1"></i>Forks</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl font-bold text-primary mb-1" id="active-cooks">2,156</div>
+            <div class="text-2xl font-bold text-primary mb-1" id="active-cooks">-</div>
             <div class="text-sm text-dark-text-muted"><i class="fas fa-users mr-1"></i>Cooks</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl font-bold text-primary mb-1" id="recipes-today">43</div>
+            <div class="text-2xl font-bold text-primary mb-1" id="recipes-today">-</div>
             <div class="text-sm text-dark-text-muted"><i class="fas fa-calendar-day mr-1"></i>Today</div>
           </div>
         </div>
@@ -2040,6 +2040,9 @@
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
+      // Load dashboard statistics
+      await loadDashboardStats();
+      
       // Initialize repo tabs
       document.querySelectorAll('.repo-tab').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -2198,15 +2201,28 @@
     
     async function forkRecipe(recipeId) {
       try {
-        // This would make an API call to fork the recipe
-        const toast = document.createElement('div');
-        toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
-        toast.innerHTML = '<i class="fas fa-code-branch mr-2"></i>Recipe forked successfully!';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        const response = await fetch(`/api/recipes/${recipeId}/fork`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         
-        // Reload recipes to show the new fork
-        await loadRecipes();
+        const data = await response.json();
+        
+        if (response.ok) {
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+          toast.innerHTML = '<i class="fas fa-code-branch mr-2"></i>' + (data.message || 'Recipe forked successfully!');
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+          
+          // Reload recipes to show the new fork
+          await loadRecipes();
+          await loadDashboardStats();
+        } else {
+          alert(data.error || 'Failed to fork recipe');
+        }
       } catch (error) {
         console.error('Fork failed:', error);
         alert('Failed to fork recipe: ' + error.message);
@@ -2215,18 +2231,51 @@
     
     async function starRecipe(recipeId) {
       try {
-        // This would make an API call to star the recipe
-        const toast = document.createElement('div');
-        toast.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
-        toast.innerHTML = '<i class="fas fa-star mr-2"></i>Recipe starred!';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        const response = await fetch(`/api/recipes/${recipeId}/star`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         
-        // Update the star count in the UI
-        // This would normally be handled by reloading or updating the specific recipe
+        const data = await response.json();
+        
+        if (response.ok) {
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+          toast.innerHTML = '<i class="fas fa-star mr-2"></i>' + (data.message || 'Recipe starred!');
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+          
+          // Reload recipes to update star counts
+          await loadRecipes();
+          await loadDashboardStats();
+        } else {
+          alert(data.error || 'Failed to star recipe');
+        }
       } catch (error) {
         console.error('Star failed:', error);
         alert('Failed to star recipe: ' + error.message);
+      }
+    }
+
+    async function loadDashboardStats() {
+      try {
+        const response = await fetch('/api/dashboard/stats');
+        const stats = await response.json();
+        
+        if (response.ok) {
+          document.getElementById('total-recipes').textContent = stats.total_recipes.toLocaleString();
+          document.getElementById('total-forks').textContent = stats.total_forks.toLocaleString();
+          document.getElementById('active-cooks').textContent = stats.active_cooks.toLocaleString();
+          document.getElementById('recipes-today').textContent = stats.recipes_today.toLocaleString();
+        } else {
+          console.error('Failed to load dashboard stats:', stats.error);
+          // Keep default "-" values if API fails
+        }
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+        // Keep default "-" values if request fails
       }
     }
 
