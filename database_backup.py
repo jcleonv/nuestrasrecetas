@@ -74,7 +74,7 @@ class User(Base):
 class Recipe(Base):
     __tablename__ = "recipes"
     id = Column(Integer, primary_key=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # Allow null for guest mode
     title = Column(String, nullable=False)
     description = Column(Text, default="")
     category = Column(String, default="")
@@ -165,7 +165,7 @@ class Comment(Base):
 class Plan(Base):
     __tablename__ = "plans"
     id = Column(Integer, primary_key=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # Nullable for backwards compatibility
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)  # Not nullable in Supabase
     name = Column(String, default="Week Plan")
     plan_json = Column(Text, default="{}")
     created_at = Column(DateTime, default=func.now())

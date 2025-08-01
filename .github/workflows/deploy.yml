@@ -1,0 +1,34 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
+    
+    - name: Deploy to DigitalOcean
+      run: |
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.DIGITALOCEAN_IP }} << 'EOF'
+          cd /opt/nuestrasrecetas
+          git pull origin main
+          
+          # Build and restart containers
+          docker-compose down
+          docker-compose build --no-cache
+          docker-compose up -d
+          
+          # Clean up old images
+          docker image prune -f
+        EOF

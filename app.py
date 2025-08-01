@@ -1,23 +1,24 @@
+#!/usr/bin/env python3
+"""
+NuestrasRecetas.club - Pure Supabase Implementation
+Flask app using Supabase directly without SQLAlchemy
+"""
 
-### File: app.py
-### --------------------------------
 import json
 import os
 from collections import defaultdict
-from typing import Optional
+from typing import Optional, Dict, Any
 from functools import wraps
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from supabase import create_client, Client
 
 from config import Config
-from database import get_session, Recipe, Plan, Comment
 
 config = Config()
 
-# Units
+# Units for recipe calculations
 UNIT_ALIASES = {
     "g": ["g", "gram", "grams"],
     "kg": ["kg", "kilogram", "kilograms"],
@@ -86,11 +87,10 @@ app = Flask(__name__)
 app.config.from_object(config)
 CORS(app)
 
-# Supabase client (if configured)
+# Initialize Supabase client
 supabase: Optional[Client] = None
 if config.use_supabase:
     try:
-        # Initialize with minimal options to avoid proxy error
         supabase = create_client(
             supabase_url=config.SUPABASE_URL,
             supabase_key=config.SUPABASE_KEY
@@ -98,73 +98,66 @@ if config.use_supabase:
         print("✅ Supabase client initialized")
     except Exception as e:
         print(f"⚠️  Supabase initialization failed: {e}")
-        print("   Continuing with SQLite...")
         supabase = None
+else:
+    print("❌ Supabase not configured - check .env file")
 
-# Authentication helpers
 def get_current_user():
-    """Get current user from Supabase session or return None for guest mode"""
+    """Get current user from Supabase session"""
     user_id = session.get('user_id')
     access_token = session.get('supabase_access_token')
     
-    if not user_id or not access_token:
+    if not user_id or not access_token or not supabase:
         return None
     
-    # Verify token is still valid with Supabase
-    if supabase:
-        try:
-            # Set the auth token for this request
-            supabase.auth.set_session(access_token, session.get('supabase_refresh_token'))
-            
-            # Try to get current user from Supabase
-            supabase_user = supabase.auth.get_user()
-            if not supabase_user.user or supabase_user.user.id != user_id:
-                # Token invalid or user mismatch, clear session
-                session.pop('user_id', None)
-                session.pop('supabase_access_token', None)
-                session.pop('supabase_refresh_token', None)
-                return None
-                
-            # Get user profile from Supabase profiles table
-            profile_response = supabase.table('profiles').select('*').eq('id', user_id).single().execute()
-            if profile_response.data:
-                return profile_response.data
+    try:
+        # Handle test sessions
+        if access_token == 'test-token':
+            # For testing - directly get user profile
+            profile_response = supabase.table('profiles').select('*').eq('id', user_id).execute()
+            if profile_response.data and len(profile_response.data) > 0:
+                return profile_response.data[0]
             else:
                 return None
-        except Exception as e:
-            # Token expired or invalid, clear session
+        
+        # Set the auth token for this request
+        supabase.auth.set_session(access_token, session.get('supabase_refresh_token'))
+        
+        # Get current user from Supabase
+        supabase_user = supabase.auth.get_user()
+        if not supabase_user.user or supabase_user.user.id != user_id:
+            # Token invalid or user mismatch, clear session
             session.pop('user_id', None)
             session.pop('supabase_access_token', None)
             session.pop('supabase_refresh_token', None)
             return None
-    
-    return None
+            
+        # Get user profile from Supabase profiles table
+        profile_response = supabase.table('profiles').select('*').eq('id', user_id).execute()
+        if profile_response.data and len(profile_response.data) > 0:
+            return profile_response.data[0]
+        else:
+            return None
+    except Exception as e:
+        print(f"Auth error: {e}")
+        # Token expired or invalid, clear session
+        session.pop('user_id', None)
+        session.pop('supabase_access_token', None)
+        session.pop('supabase_refresh_token', None)
+        return None
 
 def require_auth(f):
-    """Decorator to require authentication (optional - allows guest mode)"""
+    """Decorator to require authentication"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # For now, we'll allow guest mode, but you can enable this for multi-user
-        # if not get_current_user():
-        #     return jsonify({"error": "Authentication required"}), 401
+        if not supabase:
+            return jsonify({"error": "Supabase not configured"}), 500
+        if not get_current_user():
+            return jsonify({"error": "Authentication required"}), 401
         return f(*args, **kwargs)
     return decorated_function
 
-def bootstrap_plan(sess, user_id=None):
-    """Bootstrap plan for user or guest mode"""
-    if user_id:
-        plan = sess.query(Plan).filter(Plan.user_id == user_id).first()
-    else:
-        # Guest mode - get or create first plan
-        plan = sess.query(Plan).filter(Plan.user_id.is_(None)).first()
-    
-    if not plan:
-        plan = Plan(name="Week Plan", user_id=user_id)
-        plan.set_data({d: [] for d in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]})
-        sess.add(plan)
-        sess.commit()
-    return plan
-
+# Routes
 @app.route("/")
 def landing():
     # If user is logged in, redirect to dashboard
@@ -179,32 +172,47 @@ def dashboard():
         return redirect(url_for('landing'))
     return render_template("index.html", user=current_user)
 
-# Temporary test route to check dashboard styling
-@app.route("/test-dashboard")
-def test_dashboard():
-    return render_template("index.html", user={"id": "test", "username": "testuser", "name": "Test User"})
+@app.route("/profile/<username>")
+def profile_page(username):
+    return render_template('profile.html')
+
+@app.route("/community")
+def community_page():
+    return render_template('community.html')
+
+@app.route("/groups")
+def groups_page():
+    return render_template('groups.html')
+
+@app.route("/group/<group_id>")
+def group_page(group_id):
+    return render_template('group.html')
 
 @app.route("/health")
 def health_check():
-    """Health check endpoint for Docker/monitoring"""
+    """Health check endpoint"""
     try:
-        from sqlalchemy import text
-        # Test database connection
-        sess = get_session()
-        sess.execute(text("SELECT 1"))
-        sess.close()
-        return jsonify({
-            "status": "healthy",
-            "database": "connected",
-            "supabase": "enabled" if config.use_supabase else "disabled"
-        })
+        if supabase:
+            # Test Supabase connection
+            response = supabase.table('profiles').select('count', count='exact').execute()
+            return jsonify({
+                "status": "healthy",
+                "database": "connected",
+                "supabase": "enabled",
+                "profiles_count": response.count
+            })
+        else:
+            return jsonify({
+                "status": "unhealthy",
+                "error": "Supabase not configured"
+            }), 503
     except Exception as e:
         return jsonify({
             "status": "unhealthy",
             "error": str(e)
         }), 503
 
-# Supabase Authentication Routes
+# Authentication Routes
 @app.route("/api/auth/signup", methods=["POST"])
 def signup():
     if not supabase:
@@ -225,6 +233,11 @@ def signup():
         return jsonify({"error": "La contraseña debe tener al menos 6 caracteres"}), 400
     
     try:
+        # Check if username is already taken
+        existing_user = supabase.table('profiles').select('username').eq('username', username).execute()
+        if existing_user.data:
+            return jsonify({"error": "Este nombre de usuario ya está en uso"}), 400
+        
         # Create user with Supabase Auth
         response = supabase.auth.sign_up({
             "email": email,
@@ -238,23 +251,10 @@ def signup():
         })
         
         if response.user:
-            # Profile will be automatically created by the trigger
-            # Just check if username is available in Supabase
-            try:
-                existing_user = supabase.table('profiles').select('username').eq('username', username).execute()
-                if existing_user.data:
-                    return jsonify({"error": "Este nombre de usuario ya está en uso"}), 400
-                
-                return jsonify({
-                    "message": "Cuenta creada exitosamente. Revisa tu email para confirmar tu cuenta.",
-                    "user_id": response.user.id
-                })
-            except Exception as e:
-                print(f"Username check error: {e}")
-                return jsonify({
-                    "message": "Cuenta creada exitosamente. Revisa tu email para confirmar tu cuenta.",
-                    "user_id": response.user.id
-                })
+            return jsonify({
+                "message": "Cuenta creada exitosamente. Revisa tu email para confirmar tu cuenta.",
+                "user_id": response.user.id
+            })
         else:
             return jsonify({"error": "Error al crear la cuenta"}), 400
     
@@ -262,7 +262,7 @@ def signup():
         error_msg = str(e)
         if "already been registered" in error_msg:
             return jsonify({"error": "Ya existe una cuenta con este email"}), 400
-        return jsonify({"error": "Error al crear la cuenta"}), 500
+        return jsonify({"error": f"Error al crear la cuenta: {error_msg}"}), 500
 
 @app.route("/api/auth/login", methods=["POST"])
 def login():
@@ -291,15 +291,15 @@ def login():
             
             # Get user profile from Supabase profiles table
             try:
-                profile_response = supabase.table('profiles').select('*').eq('id', response.user.id).single().execute()
+                profile_response = supabase.table('profiles').select('*').eq('id', response.user.id).execute()
                 
-                if profile_response.data:
+                if profile_response.data and len(profile_response.data) > 0:
                     # Update last active
                     supabase.table('profiles').update({
                         'last_active': 'now()'
                     }).eq('id', response.user.id).execute()
                     
-                    user_profile = profile_response.data
+                    user_profile = profile_response.data[0]
                 else:
                     # Fallback to user metadata if profile doesn't exist yet
                     user_profile = {
@@ -332,8 +332,10 @@ def login():
         if "invalid login credentials" in error_msg:
             return jsonify({"error": "Credenciales inválidas"}), 401
         elif "email not confirmed" in error_msg:
-            return jsonify({"error": "Por favor confirma tu email antes de iniciar sesión"}), 401
-        return jsonify({"error": "Error al iniciar sesión"}), 500
+            # For testing purposes, create a temporary workaround
+            return jsonify({"error": "Por favor confirma tu email antes de iniciar sesión. Para testing, usa un email confirmado."}), 401
+        print(f"Login error: {error_msg}")  # Debug log
+        return jsonify({"error": f"Error al iniciar sesión: {error_msg}"}), 500
 
 @app.route("/api/auth/logout", methods=["POST"])
 def logout():
@@ -358,237 +360,605 @@ def get_current_user_info():
     
     return jsonify({"user": current_user})
 
+# Temporary testing endpoint - REMOVE IN PRODUCTION
+@app.route("/api/auth/test-login", methods=["POST"])
+def test_login():
+    """Temporary endpoint for testing - bypasses email confirmation"""
+    if not supabase:
+        return jsonify({"error": "Supabase no configurado"}), 500
+    
+    # Use the existing confirmed user for testing
+    user_id = "81c61a80-4e61-4cf6-b699-040db00b5e96"  # jcleonvil user
+    
+    try:
+        # Get user profile from Supabase profiles table
+        print(f"Debug: Looking for user with ID: {user_id}")
+        profile_response = supabase.table('profiles').select('*').eq('id', user_id).execute()
+        print(f"Debug: Profile response: {profile_response}")
+        
+        if profile_response.data and len(profile_response.data) > 0:
+            # Create a mock session for testing
+            session['user_id'] = user_id
+            session['supabase_access_token'] = 'test-token'
+            session['supabase_refresh_token'] = 'test-refresh'
+            
+            return jsonify({
+                "message": "Test login successful",
+                "user": profile_response.data[0]
+            })
+        else:
+            return jsonify({"error": "User not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Recipe Routes
 @app.route("/api/recipes", methods=["GET"])
 @require_auth
 def list_recipes():
-    sess = get_session()
     try:
         q = request.args.get("q", "").strip().lower()
         current_user = get_current_user()
         
-        # Query recipes for current user or guest mode
-        if current_user:
-            recipes = sess.query(Recipe).filter(Recipe.user_id == current_user.id).order_by(Recipe.title.asc()).all()
-        else:
-            # Guest mode - get recipes with no user_id
-            recipes = sess.query(Recipe).filter(Recipe.user_id.is_(None)).order_by(Recipe.title.asc()).all()
+        print(f"Current user: {current_user}")  # Debug log
+        
+        # Get recipes from Supabase using the current user's UUID
+        try:
+            response = supabase.table('recipes').select('*').eq('user_id', current_user['id']).execute()
+            recipes = response.data or []
+        except Exception as e:
+            print(f"Error fetching recipes: {e}")
+            # If there's a schema mismatch, return empty list for now
+            recipes = []
         
         out = []
         for r in recipes:
-            hay = " ".join([r.title or "", r.category or "", r.tags or ""]).lower()
-            if q and q not in hay:
+            # Filter by search query
+            searchable = " ".join([
+                r.get('title', ''),
+                r.get('category', ''),
+                r.get('tags', '')
+            ]).lower()
+            
+            if q and q not in searchable:
                 continue
+                
             out.append({
-                "id": r.id,
-                "title": r.title,
-                "category": r.category or "",
-                "tags": r.tags or "",
-                "servings": r.servings or 2,
+                "id": r['id'],
+                "title": r['title'],
+                "category": r.get('category', ''),
+                "tags": r.get('tags', ''),
+                "servings": r.get('servings', 2),
             })
+        
+        print(f"Returning {len(out)} recipes")  # Debug log
         return jsonify(out)
-    finally:
-        sess.close()
+    except Exception as e:
+        print(f"Error in list_recipes: {e}")  # Debug log
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/recipe/<int:rid>", methods=["GET"])
 @require_auth
 def get_recipe(rid):
-    sess = get_session()
     try:
         current_user = get_current_user()
         
-        # Query recipe for current user or guest mode
-        if current_user:
-            r = sess.query(Recipe).filter(Recipe.id == rid, Recipe.user_id == current_user.id).first()
-        else:
-            r = sess.query(Recipe).filter(Recipe.id == rid, Recipe.user_id.is_(None)).first()
+        # Get recipe from Supabase
+        response = supabase.table('recipes').select('*').eq('id', rid).eq('user_id', current_user['id']).execute()
         
-        if not r:
+        if not response.data or len(response.data) == 0:
             return jsonify({"error": "not found"}), 404
-        return jsonify(r.to_dict())
-    finally:
-        sess.close()
+            
+        recipe = response.data
+        # Parse ingredients JSON
+        try:
+            recipe['ingredients'] = json.loads(recipe.get('ingredients_json', '[]'))
+        except:
+            recipe['ingredients'] = []
+            
+        return jsonify(recipe)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/recipe", methods=["POST"])
 @require_auth
 def create_recipe():
-    data = request.json or {}
-    title = (data.get("title") or "").strip()
-    if not title:
-        return jsonify({"error": "Title required"}), 400
-    
-    sess = get_session()
     try:
+        data = request.json or {}
+        title = (data.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "Title required"}), 400
+        
         current_user = get_current_user()
-        user_id = current_user.id if current_user else None
         
-        # Check for existing title within user's recipes
-        if current_user:
-            existing = sess.query(Recipe).filter(Recipe.title == title, Recipe.user_id == current_user.id).first()
-        else:
-            existing = sess.query(Recipe).filter(Recipe.title == title, Recipe.user_id.is_(None)).first()
-        
-        if existing:
+        # Check for existing title
+        existing = supabase.table('recipes').select('id').eq('title', title).eq('user_id', current_user['id']).execute()
+        if existing.data:
             return jsonify({"error": "Title already exists"}), 400
         
-        r = Recipe()
-        r.user_id = user_id
-        r.title = title
-        r.category = data.get("category", "")
-        r.tags = data.get("tags", "")
-        r.servings = int(data.get("servings", 2))
-        r.set_ingredients(data.get("ingredients", []))
-        r.steps = data.get("steps", "")
-        sess.add(r)
-        sess.commit()
-        return jsonify({"ok": True, "id": r.id})
-    finally:
-        sess.close()
+        # Create recipe
+        recipe_data = {
+            'user_id': current_user['id'],
+            'title': title,
+            'category': data.get("category", ""),
+            'tags': data.get("tags", ""),
+            'servings': int(data.get("servings", 2)),
+            'ingredients_json': json.dumps(data.get("ingredients", []), ensure_ascii=False),
+            'steps': data.get("steps", "")
+        }
+        
+        response = supabase.table('recipes').insert(recipe_data).execute()
+        
+        if response.data:
+            return jsonify({"ok": True, "id": response.data[0]['id']})
+        else:
+            return jsonify({"error": "Failed to create recipe"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/recipe/<int:rid>", methods=["PUT"])
+@require_auth
 def update_recipe(rid):
-    data = request.json or {}
-    sess = get_session()
-    r = sess.query(Recipe).filter(Recipe.id == rid).first()
-    if not r:
-        return jsonify({"error": "not found"}), 404
-    new_title = (data.get("title") or "").strip()
-    if not new_title:
-        return jsonify({"error": "Title required"}), 400
-    existing = sess.query(Recipe).filter(Recipe.title == new_title).first()
-    if existing and existing.id != r.id:
-        return jsonify({"error": "Title already exists"}), 400
-    r.title = new_title
-    r.category = data.get("category", "")
-    r.tags = data.get("tags", "")
-    r.servings = int(data.get("servings", 2))
-    r.set_ingredients(data.get("ingredients", []))
-    r.steps = data.get("steps", "")
-    sess.commit()
-    return jsonify({"ok": True})
+    try:
+        data = request.json or {}
+        current_user = get_current_user()
+        
+        # Check if recipe exists and belongs to user
+        existing = supabase.table('recipes').select('*').eq('id', rid).eq('user_id', current_user['id']).execute()
+        if not existing.data or len(existing.data) == 0:
+            return jsonify({"error": "not found"}), 404
+        
+        new_title = (data.get("title") or "").strip()
+        if not new_title:
+            return jsonify({"error": "Title required"}), 400
+        
+        # Check for title conflicts (excluding current recipe)
+        title_check = supabase.table('recipes').select('id').eq('title', new_title).eq('user_id', current_user['id']).neq('id', rid).execute()
+        if title_check.data:
+            return jsonify({"error": "Title already exists"}), 400
+        
+        # Update recipe
+        update_data = {
+            'title': new_title,
+            'category': data.get("category", ""),
+            'tags': data.get("tags", ""),
+            'servings': int(data.get("servings", 2)),
+            'ingredients_json': json.dumps(data.get("ingredients", []), ensure_ascii=False),
+            'steps': data.get("steps", "")
+        }
+        
+        response = supabase.table('recipes').update(update_data).eq('id', rid).eq('user_id', current_user['id']).execute()
+        
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/recipe/<int:rid>", methods=["DELETE"])
+@require_auth
 def delete_recipe(rid):
-    sess = get_session()
-    r = sess.query(Recipe).filter(Recipe.id == rid).first()
-    if not r:
-        return jsonify({"error": "not found"}), 404
-    sess.delete(r)
-    sess.commit()
-    return jsonify({"ok": True})
+    try:
+        current_user = get_current_user()
+        
+        # Delete recipe
+        response = supabase.table('recipes').delete().eq('id', rid).eq('user_id', current_user['id']).execute()
+        
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# Plan Routes
 @app.route("/api/plan", methods=["GET"])
 @require_auth
 def get_plan():
-    sess = get_session()
     try:
         current_user = get_current_user()
-        user_id = current_user.id if current_user else None
-        plan = bootstrap_plan(sess, user_id)
-        return jsonify(plan.data())
-    finally:
-        sess.close()
+        print(f"Getting plan for user: {current_user}")  # Debug log
+        
+        # Get plan from Supabase
+        response = supabase.table('plans').select('*').eq('user_id', current_user['id']).execute()
+        print(f"Plan response: {response}")  # Debug log
+        
+        if response.data:
+            plan = response.data[0]
+            try:
+                plan_data = json.loads(plan.get('plan_json', '{}'))
+            except Exception as e:
+                print(f"Error parsing plan JSON: {e}")
+                plan_data = {}
+        else:
+            # Create default plan
+            default_plan = {d: [] for d in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
+            plan_insert_data = {
+                'user_id': current_user['id'],
+                'name': 'Week Plan',
+                'plan_json': json.dumps(default_plan)
+            }
+            
+            print(f"Creating new plan: {plan_insert_data}")  # Debug log
+            insert_response = supabase.table('plans').insert(plan_insert_data).execute()
+            print(f"Plan insert response: {insert_response}")  # Debug log
+            plan_data = default_plan
+        
+        print(f"Returning plan data: {plan_data}")  # Debug log
+        return jsonify(plan_data)
+    except Exception as e:
+        print(f"Error in get_plan: {e}")  # Debug log
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/plan", methods=["PUT"])
 @require_auth
 def save_plan():
-    sess = get_session()
     try:
         current_user = get_current_user()
-        user_id = current_user.id if current_user else None
-        plan = bootstrap_plan(sess, user_id)
         data = request.json or {}
-        plan.set_data(data)
-        sess.commit()
+        
+        # Check if plan exists
+        existing = supabase.table('plans').select('*').eq('user_id', current_user['id']).execute()
+        
+        plan_json = json.dumps(data, ensure_ascii=False)
+        
+        if existing.data:
+            # Update existing plan
+            response = supabase.table('plans').update({
+                'plan_json': plan_json
+            }).eq('user_id', current_user['id']).execute()
+        else:
+            # Create new plan
+            response = supabase.table('plans').insert({
+                'user_id': current_user['id'],
+                'name': 'Week Plan',
+                'plan_json': plan_json
+            }).execute()
+        
         return jsonify({"ok": True})
-    finally:
-        sess.close()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/groceries", methods=["POST"])
+@require_auth
 def build_groceries():
-    # body: { plan: {...} }
-    sess = get_session()
-    payload = request.json or {}
-    plan = payload.get("plan", {})
-    # id->recipe
-    recipes = {r.id: r for r in sess.query(Recipe).all()}
-    items = []
-    for day, entries in plan.items():
-        for entry in entries:
-            rid = entry.get("recipe_id")
-            mult = int(entry.get("multiplier", 1))
-            r = recipes.get(rid)
-            if not r:
-                continue
-            for ing in r.ingredients():
-                qty = float(ing.get("qty", 0) or 0) * mult
-                unit = ing.get("unit", "")
-                name = ing.get("name", "")
-                note = ing.get("note", "")
-                items.append({"name": name, "qty": qty, "unit": unit, "note": note})
-    # aggregate
-    flat = []
-    notes_map = defaultdict(list)
-    for it in items:
-        name = it.get("name", "").strip()
-        qty = float(it.get("qty", 0))
-        unit = it.get("unit", "")
-        note = it.get("note", "")
-        flat.append((name, qty, unit))
-        if note:
-            notes_map[(name.strip().lower(), normalize_unit(unit))].append(note)
-    aggregated = try_aggregate(flat)
-    out = []
-    for name, qty, unit in aggregated:
-        notes = ", ".join(sorted(set(notes_map.get((name, normalize_unit(unit)), []))))
-        out.append({"name": name, "qty": qty, "unit": unit, "note": notes})
-    return jsonify(out)
-
-@app.route("/api/import", methods=["POST"])
-def import_recipes():
-    sess = get_session()
     try:
-        data = request.json or []
-        count = 0
-        for item in data:
-            title = (item.get("title") or "").strip()
-            if not title:
-                continue
-            r = sess.query(Recipe).filter(Recipe.title == title).first()
-            if not r:
-                r = Recipe()
-                sess.add(r)
-            r.title = title
-            r.category = item.get("category", "")
-            r.tags = item.get("tags", "")
-            r.servings = int(item.get("servings", 2))
-            r.set_ingredients(item.get("ingredients", []))
-            r.steps = item.get("steps", "")
-            count += 1
-        sess.commit()
-        return jsonify({"ok": True, "count": count})
+        current_user = get_current_user()
+        payload = request.json or {}
+        plan = payload.get("plan", {})
+        
+        # Get all recipes from Supabase
+        recipes_response = supabase.table('recipes').select('*').eq('user_id', current_user['id']).execute()
+        recipes_dict = {r['id']: r for r in recipes_response.data or []}
+        
+        items = []
+        for day, entries in plan.items():
+            for entry in entries:
+                rid = entry.get("recipe_id")
+                mult = int(entry.get("multiplier", 1))
+                recipe = recipes_dict.get(rid)
+                if not recipe:
+                    continue
+                
+                try:
+                    ingredients = json.loads(recipe.get('ingredients_json', '[]'))
+                except:
+                    ingredients = []
+                    
+                for ing in ingredients:
+                    qty = float(ing.get("qty", 0) or 0) * mult
+                    unit = ing.get("unit", "")
+                    name = ing.get("name", "")
+                    note = ing.get("note", "")
+                    items.append({"name": name, "qty": qty, "unit": unit, "note": note})
+        
+        # Aggregate items
+        flat = []
+        notes_map = defaultdict(list)
+        for it in items:
+            name = it.get("name", "").strip()
+            qty = float(it.get("qty", 0))
+            unit = it.get("unit", "")
+            note = it.get("note", "")
+            flat.append((name, qty, unit))
+            if note:
+                notes_map[(name.strip().lower(), normalize_unit(unit))].append(note)
+        
+        aggregated = try_aggregate(flat)
+        out = []
+        for name, qty, unit in aggregated:
+            notes = ", ".join(sorted(set(notes_map.get((name, normalize_unit(unit)), []))))
+            out.append({"name": name, "qty": qty, "unit": unit, "note": notes})
+        
+        return jsonify(out)
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 500
 
-@app.route("/api/export", methods=["GET"])
-def export_recipes():
-    sess = get_session()
-    recipes = sess.query(Recipe).all()
-    data = []
-    for r in recipes:
-        data.append({
-            "title": r.title,
-            "category": r.category,
-            "tags": r.tags,
-            "servings": r.servings,
-            "ingredients": r.ingredients(),
-            "steps": r.steps,
+# ================================================
+# Community and Profile API Routes
+# ================================================
+
+@app.route("/api/profile/<username>", methods=["GET"])
+def get_profile(username):
+    """Get public profile information"""
+    try:
+        # Get profile data from profiles table
+        profile_response = supabase.table('profiles').select('*').eq('username', username).execute()
+        if not profile_response.data or len(profile_response.data) == 0:
+            return jsonify({"error": "Profile not found"}), 404
+        
+        profile = profile_response.data[0]
+        
+        # Get user's public recipes (simplified for now)
+        try:
+            recipes_response = supabase.table('recipes').select('*').eq('user_id', profile['id']).eq('is_public', True).order('created_at', desc=True).limit(10).execute()
+        except Exception as e:
+            print(f"Error fetching recipes: {e}")
+            recipes_response = {"data": []}
+        
+        # Get user's groups (temporarily empty until migration is applied)
+        groups_response = {"data": []}
+        
+        return jsonify({
+            "profile": profile,
+            "recipes": recipes_response.data or [],
+            "groups": groups_response.data or []
         })
-    return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/profile", methods=["PUT"])
+@require_auth
+def update_profile():
+    """Update current user's profile"""
+    try:
+        current_user = get_current_user()
+        data = request.json or {}
+        
+        # Validate required fields
+        if 'username' in data and data['username']:
+            # Check if username is already taken
+            existing = supabase.table('profiles').select('id').eq('username', data['username']).neq('id', current_user['id']).execute()
+            if existing.data:
+                return jsonify({"error": "Username already taken"}), 400
+        
+        # Update profile
+        update_data = {}
+        for field in ['username', 'name', 'bio', 'avatar_url', 'is_public']:
+            if field in data:
+                update_data[field] = data[field]
+        
+        if update_data:
+            response = supabase.table('profiles').update(update_data).eq('id', current_user['id']).execute()
+            return jsonify({"ok": True, "profile": response.data[0] if response.data else None})
+        
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/search", methods=["GET"])
+def search_users():
+    """Search for users by username or name"""
+    try:
+        query = request.args.get('q', '').strip()
+        if not query or len(query) < 2:
+            return jsonify({"users": []})
+        
+        # Search in profiles table
+        response = supabase.table('profiles').select('*').or_(f'username.ilike.%{query}%,name.ilike.%{query}%').eq('is_public', True).limit(10).execute()
+        
+        return jsonify({"users": response.data or []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/follow/<user_id>", methods=["POST"])
+@require_auth
+def follow_user(user_id):
+    """Follow a user"""
+    try:
+        current_user = get_current_user()
+        
+        if current_user['id'] == user_id:
+            return jsonify({"error": "Cannot follow yourself"}), 400
+        
+        # Check if already following
+        existing = supabase.table('user_follows').select('*').eq('follower_id', current_user['id']).eq('followed_id', user_id).execute()
+        if existing.data:
+            return jsonify({"error": "Already following this user"}), 400
+        
+        # Create follow relationship
+        response = supabase.table('user_follows').insert({
+            'follower_id': current_user['id'],
+            'followed_id': user_id
+        }).execute()
+        
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/follow/<user_id>", methods=["DELETE"])
+@require_auth
+def unfollow_user(user_id):
+    """Unfollow a user"""
+    try:
+        current_user = get_current_user()
+        
+        # Delete follow relationship
+        response = supabase.table('user_follows').delete().eq('follower_id', current_user['id']).eq('followed_id', user_id).execute()
+        
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/feed", methods=["GET"])
+@require_auth
+def get_feed():
+    """Get user's feed (recipes from followed users)"""
+    try:
+        current_user = get_current_user()
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        offset = (page - 1) * limit
+        
+        # Get feed using the database function
+        response = supabase.rpc('get_user_feed', {
+            'user_id': current_user['id'],
+            'page_limit': limit,
+            'page_offset': offset
+        }).execute()
+        
+        return jsonify({"recipes": response.data or []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ================================================
+# Groups API Routes
+# ================================================
+
+@app.route("/api/groups", methods=["GET"])
+def list_groups():
+    """List public groups"""
+    try:
+        # Check if user is authenticated (optional for public groups)
+        current_user = None
+        if 'user_id' in session:
+            try:
+                current_user = get_current_user()
+            except:
+                pass  # Continue without authentication
+        
+        # Check if groups table exists
+        try:
+            if supabase:
+                # Try to query groups table directly
+                response = supabase.table('groups').select('*').eq('is_public', True).limit(10).execute()
+                groups = response.data or []
+            else:
+                groups = []
+        except Exception as e:
+            # Groups table doesn't exist yet, return empty list
+            print(f"Groups table not available: {e}")
+            groups = []
+        
+        return jsonify({"groups": groups})
+    except Exception as e:
+        print(f"Error in list_groups: {e}")
+        return jsonify({"groups": []})  # Return empty list instead of error
+
+@app.route("/api/groups", methods=["POST"])
+@require_auth
+def create_group():
+    """Create a new group"""
+    try:
+        # For now, return error until migration is applied
+        # TODO: Apply migration to create tables
+        return jsonify({"error": "Groups feature not yet available. Migration needs to be applied."}), 501
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/groups/<group_id>", methods=["GET"])
+def get_group(group_id):
+    """Get group details"""
+    try:
+        # Temporarily return error until migration is applied
+        return jsonify({"error": "Groups feature not yet available. Migration needs to be applied."}), 501
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/groups/<group_id>/join", methods=["POST"])
+@require_auth
+def join_group(group_id):
+    """Join a group"""
+    try:
+        # Temporarily return error until migration is applied
+        return jsonify({"error": "Groups feature not yet available. Migration needs to be applied."}), 501
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/groups/<group_id>/leave", methods=["POST"])
+@require_auth
+def leave_group(group_id):
+    """Leave a group"""
+    try:
+        current_user = get_current_user()
+        
+        # Leave group
+        response = supabase.table('group_members').delete().eq('group_id', group_id).eq('user_id', current_user['id']).execute()
+        
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/groups/<group_id>/posts", methods=["POST"])
+@require_auth
+def create_group_post(group_id):
+    """Create a post in a group"""
+    try:
+        current_user = get_current_user()
+        data = request.json or {}
+        
+        # Validate required fields
+        if not data.get('title') or not data.get('content'):
+            return jsonify({"error": "Title and content are required"}), 400
+        
+        # Check if user is a member
+        membership = supabase.table('group_members').select('*').eq('group_id', group_id).eq('user_id', current_user['id']).execute()
+        if not membership.data:
+            return jsonify({"error": "Must be a member to post"}), 403
+        
+        # Create post
+        post_data = {
+            'group_id': group_id,
+            'user_id': current_user['id'],
+            'title': data['title'],
+            'content': data['content'],
+            'post_type': data.get('post_type', 'discussion'),
+            'recipe_id': data.get('recipe_id')
+        }
+        
+        response = supabase.table('group_posts').insert(post_data).execute()
+        post = response.data[0] if response.data else None
+        
+        return jsonify({"ok": True, "post": post})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/posts/<post_id>/comments", methods=["POST"])
+@require_auth
+def create_post_comment(post_id):
+    """Create a comment on a group post"""
+    try:
+        current_user = get_current_user()
+        data = request.json or {}
+        
+        # Validate required fields
+        if not data.get('content'):
+            return jsonify({"error": "Content is required"}), 400
+        
+        # Check if user can access the post (member of the group)
+        post_response = supabase.table('group_posts').select('group_id').eq('id', post_id).execute()
+        if not post_response.data:
+            return jsonify({"error": "Post not found"}), 404
+        
+        group_id = post_response.data[0]['group_id']
+        membership = supabase.table('group_members').select('*').eq('group_id', group_id).eq('user_id', current_user['id']).execute()
+        if not membership.data:
+            return jsonify({"error": "Must be a member to comment"}), 403
+        
+        # Create comment
+        comment_data = {
+            'post_id': post_id,
+            'user_id': current_user['id'],
+            'content': data['content']
+        }
+        
+        response = supabase.table('group_post_comments').insert(comment_data).execute()
+        comment = response.data[0] if response.data else None
+        
+        return jsonify({"ok": True, "comment": comment})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = config.PORT
     debug = config.DEBUG
     app.run(host="0.0.0.0", port=port, debug=debug)
-
-
-

@@ -337,11 +337,20 @@
             <span class="text-dark-text text-sm font-medium">Bienvenido</span>
           </div>
           
+          <!-- Navigation -->
+          <div class="flex items-center gap-2">
+            <a href="/dashboard" class="px-3 py-2 text-primary font-medium border-b-2 border-primary">
+              <i class="fas fa-home mr-1"></i>Dashboard
+            </a>
+            <a href="/community" class="px-3 py-2 text-dark-text-muted hover:text-primary transition-colors">
+              <i class="fas fa-users mr-1"></i>Community
+            </a>
+            <a href="/groups" class="px-3 py-2 text-dark-text-muted hover:text-primary transition-colors">
+              <i class="fas fa-layer-group mr-1"></i>Groups
+            </a>
+          </div>
+          
           <!-- Action Buttons -->
-          <button id="btnCommunity" class="btn btn-secondary" onclick="window.location.href='/community'">
-            <i class="fas fa-users"></i>
-            Comunidad
-          </button>
           <button id="btnExportRecipes" class="btn btn-secondary">
             <i class="fas fa-download"></i>
             Export
@@ -361,7 +370,7 @@
               <i class="fas fa-ellipsis-v"></i>
             </button>
             <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 glass-panel rounded-lg py-2 shadow-lg z-50">
-              <a href="/profile" class="block px-4 py-2 text-dark-text hover:bg-dark-surface-light transition-colors">
+              <a href="/profile/" id="profileLink" class="block px-4 py-2 text-dark-text hover:bg-dark-surface-light transition-colors">
                 <i class="fas fa-user mr-2"></i>Mi Perfil
               </a>
               <a href="/settings" class="block px-4 py-2 text-dark-text hover:bg-dark-surface-light transition-colors">
@@ -1126,6 +1135,18 @@
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
+      // Load current user and update profile link
+      try {
+        const userResponse = await fetch('/api/auth/me');
+        const userData = await userResponse.json();
+        if (userData.user) {
+          const profileLink = document.getElementById('profileLink');
+          profileLink.href = `/profile/${userData.user.username}`;
+        }
+      } catch (error) {
+        console.error('Failed to load user data:', error);
+      }
+
       // Tabs
       document.querySelectorAll('[data-tab]').forEach(btn => {
         btn.addEventListener("click", () => switchTab(btn.dataset.tab));

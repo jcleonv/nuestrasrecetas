@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Community - NuestrasRecetas.club</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#10b981',
+            'primary-dark': '#059669',
+            'dark-bg': '#0f172a',
+            'dark-surface': '#1e293b',
+            'dark-surface-light': '#334155',
+            'dark-border': '#475569',
+            'dark-text': '#f1f5f9',
+            'dark-text-muted': '#94a3b8'
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-in-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+            'pulse-gentle': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' }
+            },
+            slideUp: {
+              '0%': { transform: 'translateY(10px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #475569 #1e293b; }
+    *::-webkit-scrollbar { width: 6px; }
+    *::-webkit-scrollbar-track { background: #1e293b; }
+    *::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    *::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    body { 
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #f1f5f9;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    .glass-panel { 
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    
+    .input { 
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #f1f5f9;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(5px);
+    }
+    .input:focus { 
+      outline: none;
+      border-color: #10b981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+      background: rgba(15, 23, 42, 0.8);
+    }
+    
+    .btn { 
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-weight: 600;
+      color: white;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    .btn:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+    .btn:active { transform: translateY(0); }
+    
+    .btn-secondary {
+      background: rgba(71, 85, 105, 0.3);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      color: #f1f5f9;
+    }
+    .btn-secondary:hover {
+      background: rgba(71, 85, 105, 0.5);
+      border-color: rgba(71, 85, 105, 0.7);
+    }
+    
+    .loading { animation: pulse-gentle; }
+    
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- Navigation -->
+  <nav class="glass-panel sticky top-0 z-50 mb-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center">
+          <a href="/dashboard" class="text-2xl font-bold text-primary">
+            <i class="fas fa-utensils mr-2"></i>NuestrasRecetas
+          </a>
+        </div>
+        <div class="flex items-center space-x-4">
+          <a href="/dashboard" class="text-dark-text-muted hover:text-primary transition-colors">
+            <i class="fas fa-home mr-1"></i>Dashboard
+          </a>
+          <a href="/community" class="text-primary font-medium">
+            <i class="fas fa-users mr-1"></i>Community
+          </a>
+          <a href="/groups" class="text-dark-text-muted hover:text-primary transition-colors">
+            <i class="fas fa-layer-group mr-1"></i>Groups
+          </a>
+          <button onclick="logout()" class="text-dark-text-muted hover:text-red-400 transition-colors">
+            <i class="fas fa-sign-out-alt mr-1"></i>Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="glass-panel p-6 mb-8">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-bold text-white mb-2">Community Feed</h1>
+          <p class="text-dark-text-muted">Discover recipes from the community and connect with other food lovers</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="relative">
+            <input type="text" id="search-input" placeholder="Search users..." class="input pr-10">
+            <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-text-muted"></i>
+          </div>
+          <button class="btn" onclick="showCreateGroupModal()">
+            <i class="fas fa-plus"></i>Create Group
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <!-- Sidebar -->
+      <div class="lg:col-span-1">
+        <!-- Feed Tabs -->
+        <div class="glass-panel p-4 mb-6">
+          <h3 class="text-lg font-semibold text-white mb-4">Feed</h3>
+          <div class="space-y-2">
+            <button class="feed-tab active w-full text-left p-3 rounded-lg bg-primary/20 text-primary font-medium" data-feed="following">
+              <i class="fas fa-rss mr-2"></i>Following
+            </button>
+            <button class="feed-tab w-full text-left p-3 rounded-lg text-dark-text-muted hover:text-white hover:bg-dark-surface-light transition-colors" data-feed="trending">
+              <i class="fas fa-fire mr-2"></i>Trending
+            </button>
+            <button class="feed-tab w-full text-left p-3 rounded-lg text-dark-text-muted hover:text-white hover:bg-dark-surface-light transition-colors" data-feed="latest">
+              <i class="fas fa-clock mr-2"></i>Latest
+            </button>
+          </div>
+        </div>
+
+        <!-- Suggested Users -->
+        <div class="glass-panel p-4 mb-6">
+          <h3 class="text-lg font-semibold text-white mb-4">Suggested Users</h3>
+          <div id="suggested-users" class="space-y-3">
+            <div class="loading text-center py-4">
+              <i class="fas fa-spinner text-primary"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trending Groups -->
+        <div class="glass-panel p-4">
+          <h3 class="text-lg font-semibold text-white mb-4">Trending Groups</h3>
+          <div id="trending-groups" class="space-y-3">
+            <div class="loading text-center py-4">
+              <i class="fas fa-spinner text-primary"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Feed -->
+      <div class="lg:col-span-3">
+        <div id="feed-content">
+          <div class="loading text-center py-12">
+            <div class="text-4xl text-primary mb-4">
+              <i class="fas fa-spinner"></i>
+            </div>
+            <p class="text-dark-text-muted">Loading feed...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Group Modal -->
+  <div id="create-group-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="glass-panel p-8 max-w-md w-full">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-white">Create Group</h2>
+          <button onclick="hideCreateGroupModal()" class="text-dark-text-muted hover:text-white">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        
+        <form id="create-group-form" class="space-y-4">
+          <div>
+            <label class="block text-white font-medium mb-2">Group Name</label>
+            <input type="text" id="group-name" class="input w-full" placeholder="Enter group name" required>
+          </div>
+          
+          <div>
+            <label class="block text-white font-medium mb-2">Description</label>
+            <textarea id="group-description" class="input w-full h-24 resize-none" placeholder="Describe your group"></textarea>
+          </div>
+          
+          <div class="flex items-center gap-4">
+            <label class="flex items-center">
+              <input type="checkbox" id="group-public" class="mr-2" checked>
+              <span class="text-white">Public Group</span>
+            </label>
+          </div>
+          
+          <div class="flex gap-3 pt-4">
+            <button type="button" onclick="hideCreateGroupModal()" class="btn-secondary flex-1">
+              Cancel
+            </button>
+            <button type="submit" class="btn flex-1">
+              <i class="fas fa-plus mr-2"></i>Create Group
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let currentFeed = 'following';
+    let searchTimeout = null;
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      checkAuth();
+      loadFeed();
+      loadSuggestedUsers();
+      loadTrendingGroups();
+      setupEventListeners();
+    });
+
+    function checkAuth() {
+      fetch('/api/auth/me')
+        .then(response => response.json())
+        .then(data => {
+          if (data.user) {
+            currentUser = data.user;
+          } else {
+            window.location.href = '/';
+          }
+        })
+        .catch(error => {
+          console.error('Auth check failed:', error);
+          window.location.href = '/';
+        });
+    }
+
+    function setupEventListeners() {
+      // Feed tabs
+      document.querySelectorAll('.feed-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const feedType = tab.dataset.feed;
+          switchFeed(feedType);
+        });
+      });
+
+      // Search input
+      document.getElementById('search-input').addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchUsers(e.target.value);
+        }, 300);
+      });
+
+      // Create group form
+      document.getElementById('create-group-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        createGroup();
+      });
+    }
+
+    function switchFeed(feedType) {
+      currentFeed = feedType;
+      
+      // Update tab states
+      document.querySelectorAll('.feed-tab').forEach(tab => {
+        tab.classList.remove('active', 'bg-primary/20', 'text-primary');
+        tab.classList.add('text-dark-text-muted');
+      });
+      
+      const activeTab = document.querySelector(`[data-feed="${feedType}"]`);
+      activeTab.classList.add('active', 'bg-primary/20', 'text-primary');
+      activeTab.classList.remove('text-dark-text-muted');
+      
+      loadFeed();
+    }
+
+    function loadFeed() {
+      const feedContent = document.getElementById('feed-content');
+      feedContent.innerHTML = `
+        <div class="loading text-center py-12">
+          <div class="text-4xl text-primary mb-4">
+            <i class="fas fa-spinner"></i>
+          </div>
+          <p class="text-dark-text-muted">Loading ${currentFeed} recipes...</p>
+        </div>
+      `;
+
+      let url = '/api/recipes';
+      if (currentFeed === 'following') {
+        url = '/api/feed';
+      } else if (currentFeed === 'trending') {
+        url = '/api/recipes?sort=trending';
+      } else if (currentFeed === 'latest') {
+        url = '/api/recipes?sort=latest';
+      }
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          displayFeed(data.recipes || data);
+        })
+        .catch(error => {
+          console.error('Failed to load feed:', error);
+          feedContent.innerHTML = `
+            <div class="glass-panel p-8 text-center">
+              <div class="text-6xl text-red-400 mb-4">
+                <i class="fas fa-exclamation-triangle"></i>
+              </div>
+              <h2 class="text-2xl font-bold text-white mb-2">Failed to Load Feed</h2>
+              <p class="text-dark-text-muted mb-6">Something went wrong while loading the feed.</p>
+              <button onclick="loadFeed()" class="btn">
+                <i class="fas fa-redo mr-2"></i>Try Again
+              </button>
+            </div>
+          `;
+        });
+    }
+
+    function displayFeed(recipes) {
+      const feedContent = document.getElementById('feed-content');
+      
+      if (recipes.length === 0) {
+        feedContent.innerHTML = `
+          <div class="glass-panel p-8 text-center">
+            <div class="text-6xl text-dark-text-muted mb-4">
+              <i class="fas fa-utensils"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2">No recipes yet</h2>
+            <p class="text-dark-text-muted mb-6">
+              ${currentFeed === 'following' ? 
+                'Follow some users to see their recipes in your feed!' : 
+                'Be the first to share a recipe!'
+              }
+            </p>
+            <a href="/dashboard" class="btn">
+              <i class="fas fa-plus mr-2"></i>Create Recipe
+            </a>
+          </div>
+        `;
+        return;
+      }
+
+      feedContent.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          ${recipes.map(recipe => createRecipeCard(recipe)).join('')}
+        </div>
+      `;
+    }
+
+    function createRecipeCard(recipe) {
+      return `
+        <div class="glass-panel p-6 hover:transform hover:scale-105 transition-all duration-200 cursor-pointer" onclick="viewRecipe(${recipe.id})">
+          <div class="aspect-video bg-gradient-to-br from-primary/20 to-primary-dark/20 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
+            ${recipe.image_url ? 
+              `<img src="${recipe.image_url}" alt="${recipe.title}" class="w-full h-full object-cover">` :
+              `<i class="fas fa-utensils text-4xl text-primary"></i>`
+            }
+          </div>
+          <h3 class="text-lg font-semibold text-white mb-2 line-clamp-2">${recipe.title}</h3>
+          <p class="text-dark-text-muted text-sm mb-4 line-clamp-2">${recipe.description || 'No description'}</p>
+          
+          <div class="flex items-center justify-between text-sm text-dark-text-muted mb-4">
+            <div class="flex items-center gap-4">
+              <span><i class="fas fa-clock mr-1"></i>${recipe.prep_time + recipe.cook_time}min</span>
+              <span><i class="fas fa-users mr-1"></i>${recipe.servings}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span><i class="fas fa-heart mr-1"></i>${recipe.like_count || 0}</span>
+              <span><i class="fas fa-comment mr-1"></i>${recipe.comment_count || 0}</span>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white text-sm font-bold">
+                ${recipe.user_avatar ? 
+                  `<img src="${recipe.user_avatar}" alt="${recipe.user_name}" class="w-full h-full rounded-full object-cover">` :
+                  recipe.user_name.charAt(0).toUpperCase()
+                }
+              </div>
+              <div>
+                <div class="text-white font-medium">${recipe.user_name}</div>
+                <div class="text-dark-text-muted text-xs">@${recipe.username}</div>
+              </div>
+            </div>
+            <div class="text-dark-text-muted text-xs">
+              ${formatDate(recipe.created_at)}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function loadSuggestedUsers() {
+      fetch('/api/users/search?q=' + Math.random().toString(36).substring(7))
+        .then(response => response.json())
+        .then(data => {
+          displaySuggestedUsers(data.users.slice(0, 5));
+        })
+        .catch(error => {
+          console.error('Failed to load suggested users:', error);
+        });
+    }
+
+    function displaySuggestedUsers(users) {
+      const container = document.getElementById('suggested-users');
+      
+      if (users.length === 0) {
+        container.innerHTML = '<p class="text-dark-text-muted text-sm">No suggestions available</p>';
+        return;
+      }
+
+      container.innerHTML = users.map(user => `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold">
+              ${user.avatar_url ? 
+                `<img src="${user.avatar_url}" alt="${user.name}" class="w-full h-full rounded-full object-cover">` :
+                user.name.charAt(0).toUpperCase()
+              }
+            </div>
+            <div>
+              <div class="text-white font-medium text-sm">${user.name}</div>
+              <div class="text-dark-text-muted text-xs">@${user.username}</div>
+            </div>
+          </div>
+          <button onclick="followUser('${user.id}')" class="text-primary hover:text-primary-dark text-sm">
+            <i class="fas fa-user-plus"></i>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function loadTrendingGroups() {
+      fetch('/api/groups')
+        .then(response => response.json())
+        .then(data => {
+          displayTrendingGroups(data.groups.slice(0, 3));
+        })
+        .catch(error => {
+          console.error('Failed to load trending groups:', error);
+        });
+    }
+
+    function displayTrendingGroups(groups) {
+      const container = document.getElementById('trending-groups');
+      
+      if (groups.length === 0) {
+        container.innerHTML = '<p class="text-dark-text-muted text-sm">No groups available</p>';
+        return;
+      }
+
+      container.innerHTML = groups.map(group => `
+        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-dark-surface-light transition-colors cursor-pointer" onclick="viewGroup('${group.id}')">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold">
+              ${group.avatar_url ? 
+                `<img src="${group.avatar_url}" alt="${group.name}" class="w-full h-full rounded-full object-cover">` :
+                group.name.charAt(0).toUpperCase()
+              }
+            </div>
+            <div>
+              <div class="text-white font-medium text-sm">${group.name}</div>
+              <div class="text-dark-text-muted text-xs">${group.member_count} members</div>
+            </div>
+          </div>
+          <i class="fas fa-chevron-right text-dark-text-muted"></i>
+        </div>
+      `).join('');
+    }
+
+    function searchUsers(query) {
+      if (query.length < 2) {
+        return;
+      }
+
+      fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+          // You could display search results in a dropdown or modal
+          console.log('Search results:', data.users);
+        })
+        .catch(error => {
+          console.error('Search failed:', error);
+        });
+    }
+
+    function followUser(userId) {
+      fetch(`/api/follow/${userId}`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.ok) {
+            // Update UI to show followed state
+            loadSuggestedUsers();
+          } else {
+            alert(data.error || 'Failed to follow user');
+          }
+        })
+        .catch(error => {
+          console.error('Follow failed:', error);
+          alert('Failed to follow user');
+        });
+    }
+
+    function showCreateGroupModal() {
+      document.getElementById('create-group-modal').classList.remove('hidden');
+    }
+
+    function hideCreateGroupModal() {
+      document.getElementById('create-group-modal').classList.add('hidden');
+      document.getElementById('create-group-form').reset();
+    }
+
+    function createGroup() {
+      const name = document.getElementById('group-name').value;
+      const description = document.getElementById('group-description').value;
+      const isPublic = document.getElementById('group-public').checked;
+
+      fetch('/api/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          is_public: isPublic,
+          is_private: !isPublic
+        })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.ok) {
+            hideCreateGroupModal();
+            alert('Group created successfully!');
+            loadTrendingGroups();
+          } else {
+            alert(data.error || 'Failed to create group');
+          }
+        })
+        .catch(error => {
+          console.error('Create group failed:', error);
+          alert('Failed to create group');
+        });
+    }
+
+    function viewRecipe(recipeId) {
+      window.location.href = `/dashboard#recipe-${recipeId}`;
+    }
+
+    function viewGroup(groupId) {
+      window.location.href = `/group/${groupId}`;
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInHours = (now - date) / (1000 * 60 * 60);
+      
+      if (diffInHours < 1) {
+        return 'Just now';
+      } else if (diffInHours < 24) {
+        return `${Math.floor(diffInHours)}h ago`;
+      } else if (diffInHours < 168) {
+        return `${Math.floor(diffInHours / 24)}d ago`;
+      } else {
+        return date.toLocaleDateString();
+      }
+    }
+
+    function logout() {
+      fetch('/api/auth/logout', { method: 'POST' })
+        .then(() => {
+          window.location.href = '/';
+        })
+        .catch(error => {
+          console.error('Logout failed:', error);
+          window.location.href = '/';
+        });
+    }
+  </script>
+</body>
+</html> 
