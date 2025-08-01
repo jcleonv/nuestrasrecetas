@@ -4,7 +4,9 @@ NuestrasRecetas.club - Pure Supabase Implementation
 Flask app using Supabase directly without SQLAlchemy
 """
 
-import html\nimport json\nimport re
+import html
+import json
+import re
 import os
 from collections import defaultdict
 from typing import Optional, Dict, Any
@@ -14,7 +16,19 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from flask_cors import CORS
 from supabase import create_client, Client
 
-from config import Config\n\n# Security helper functions\ndef sanitize_input(text: str, max_length: int = 500) -> str:\n    \"\"\"Sanitize user input by removing HTML tags and limiting length\"\"\"\n    if not text:\n        return \"\"\n    # Remove HTML tags and decode HTML entities\n    sanitized = html.escape(text.strip())\n    # Limit length\n    if len(sanitized) > max_length:\n        sanitized = sanitized[:max_length]\n    return sanitized
+from config import Config
+
+# Security helper functions
+def sanitize_input(text: str, max_length: int = 500) -> str:
+    """Sanitize user input by removing HTML tags and limiting length"""
+    if not text:
+        return ""
+    # Remove HTML tags and decode HTML entities
+    sanitized = html.escape(text.strip())
+    # Limit length
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length]
+    return sanitized
 
 config = Config()
 
@@ -85,7 +99,20 @@ def try_aggregate(items):
 # Flask app
 app = Flask(__name__)
 app.config.from_object(config)
-# Configure CORS with specific origins for production security\nallowed_origins = [\n    \"https://nuestrasrecetas.club\",\n    \"https://www.nuestrasrecetas.club\"\n]\n\nif config.FLASK_ENV == 'development':\n    allowed_origins.extend([\"http://localhost:3000\", \"http://127.0.0.1:3000\"])\n\nCORS(app, \n     origins=allowed_origins,\n     supports_credentials=True,\n     methods=[\"GET\", \"POST\", \"PUT\", \"DELETE\", \"OPTIONS\"],\n     allow_headers=[\"Content-Type\", \"Authorization\"])
+# Configure CORS with specific origins for production security
+allowed_origins = [
+    "https://nuestrasrecetas.club",
+    "https://www.nuestrasrecetas.club"
+]
+
+if config.FLASK_ENV == 'development':
+    allowed_origins.extend(["http://localhost:3000", "http://127.0.0.1:3000"])
+
+CORS(app, 
+     origins=allowed_origins,
+     supports_credentials=True,
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"])
 
 # Initialize Supabase client
 supabase: Optional[Client] = None
@@ -500,7 +527,59 @@ def create_recipe():
         response = supabase.table('recipes').insert(recipe_data).execute()
         
         if response.data:
-            return jsonify({"ok": True, "id": response.data[0]['id']})
+            recipe_id = response.data[0]['id']
+            
+            # Create initial version (commit) for the new recipe
+            try:
+                version_data = {
+                    'recipe_id': recipe_id,
+                    'version_number': 1,
+                    'commit_message': 'Initial recipe creation',
+                    'author_id': current_user['id'],
+                    'changes_json': {"action": "create"},
+                    'snapshot_json': {
+                        'title': sanitize_input(title, 200),
+                        'description': '',
+                        'ingredients': ingredients,
+                        'steps': data.get("steps", ""),
+                        'servings': servings,
+                        'category': sanitize_input(category, 100),
+                        'tags': sanitize_input(tags, 500)
+                    }
+                }
+                supabase.table('recipe_versions').insert(version_data).execute()
+                
+                # Create main branch
+                branch_data = {
+                    'recipe_id': recipe_id,
+                    'branch_name': 'main',
+                    'description': 'Main recipe branch',
+                    'created_by': current_user['id'],
+                    'is_default': True
+                }
+                branch_response = supabase.table('recipe_branches').insert(branch_data).execute()
+                
+                # Update recipe with branch reference and version count
+                if branch_response.data:
+                    supabase.table('recipes').update({
+                        'current_branch_id': branch_response.data[0]['id'],
+                        'version_count': 1
+                    }).eq('id', recipe_id).execute()
+                
+                # Add creator as contributor
+                contributor_data = {
+                    'recipe_id': recipe_id,
+                    'contributor_id': current_user['id'],
+                    'contribution_type': 'creator',
+                    'commit_count': 1
+                }
+                supabase.table('recipe_contributors').insert(contributor_data).execute()
+                
+            except Exception as version_error:
+                print(f"Failed to create initial version: {version_error}")
+                # Don't fail recipe creation if version tracking fails
+            
+            return jsonify({"ok": True, "id": recipe_id})
         else:
             return jsonify({"error": "Failed to create recipe"}), 500
             
@@ -519,6 +598,8 @@ def update_recipe(rid):
         if not existing.data or len(existing.data) == 0:
             return jsonify({"error": "not found"}), 404
         
+        old_recipe = existing.data[0]
+        
         new_title = (data.get("title") or "").strip()
         if not new_title:
             return jsonify({"error": "Title required"}), 400
@@ -528,17 +609,96 @@ def update_recipe(rid):
         if title_check.data:
             return jsonify({"error": "Title already exists"}), 400
         
+        # Calculate changes for version tracking
+        changes = {}
+        
+        if old_recipe['title'] != new_title:
+            changes['title'] = {'from': old_recipe['title'], 'to': new_title}
+        
+        old_category = old_recipe.get('category', '')
+        new_category = data.get("category", "")
+        if old_category != new_category:
+            changes['category'] = {'from': old_category, 'to': new_category}
+        
+        old_tags = old_recipe.get('tags', '')
+        new_tags = data.get("tags", "")
+        if old_tags != new_tags:
+            changes['tags'] = {'from': old_tags, 'to': new_tags}
+        
+        old_servings = old_recipe.get('servings', 2)
+        new_servings = int(data.get("servings", 2))
+        if old_servings != new_servings:
+            changes['servings'] = {'from': old_servings, 'to': new_servings}
+        
+        old_steps = old_recipe.get('steps', '')
+        new_steps = data.get("steps", "")
+        if old_steps != new_steps:
+            changes['steps'] = True  # Don't store full text diff for now
+        
+        old_ingredients = old_recipe.get('ingredients_json', '[]')
+        new_ingredients_json = json.dumps(data.get("ingredients", []), ensure_ascii=False)
+        if old_ingredients != new_ingredients_json:
+            changes['ingredients'] = True  # Don't store full ingredient diff for now
+        
         # Update recipe
         update_data = {
             'title': new_title,
-            'category': data.get("category", ""),
-            'tags': data.get("tags", ""),
-            'servings': int(data.get("servings", 2)),
-            'ingredients_json': json.dumps(data.get("ingredients", []), ensure_ascii=False),
-            'steps': data.get("steps", "")
+            'category': new_category,
+            'tags': new_tags,
+            'servings': new_servings,
+            'ingredients_json': new_ingredients_json,
+            'steps': new_steps
         }
         
         response = supabase.table('recipes').update(update_data).eq('id', rid).eq('user_id', current_user['id']).execute()
+        
+        # Create a new version if there are changes and auto_commit is enabled
+        if changes and data.get('auto_commit', True):
+            try:
+                # Create new version snapshot
+                snapshot = {
+                    'title': new_title,
+                    'description': old_recipe.get('description', ''),
+                    'ingredients': data.get("ingredients", []),
+                    'steps': new_steps,
+                    'servings': new_servings,
+                    'category': new_category,
+                    'tags': new_tags,
+                    'prep_time': old_recipe.get('prep_time', 0),
+                    'cook_time': old_recipe.get('cook_time', 0),
+                    'difficulty': old_recipe.get('difficulty', 'Easy')
+                }
+                
+                commit_message = data.get('commit_message', 'Update recipe')
+                
+                # Try to use the database function
+                try:
+                    supabase.rpc('create_recipe_version', {
+                        'p_recipe_id': rid,
+                        'p_author_id': current_user['id'],
+                        'p_commit_message': commit_message,
+                        'p_changes_json': changes,
+                        'p_snapshot_json': snapshot
+                    }).execute()
+                except:
+                    # Fallback to manual version creation
+                    version_response = supabase.table('recipe_versions').select('version_number').eq('recipe_id', rid).order('version_number', desc=True).limit(1).execute()
+                    next_version = 1
+                    if version_response.data:
+                        next_version = version_response.data[0]['version_number'] + 1
+                    
+                    version_data = {
+                        'recipe_id': rid,
+                        'version_number': next_version,
+                        'commit_message': commit_message,
+                        'author_id': current_user['id'],
+                        'changes_json': changes,
+                        'snapshot_json': snapshot
+                    }
+                    supabase.table('recipe_versions').insert(version_data).execute()
+            except Exception as version_error:
+                print(f"Failed to create version: {version_error}")
+                # Don't fail the recipe update if version creation fails
         
         return jsonify({"ok": True})
     except Exception as e:
@@ -697,6 +857,24 @@ def get_profile(username):
         
         profile = profile_response.data[0]
         
+        # Check if current user is following this profile (if authenticated)
+        current_user = get_current_user()
+        is_following = False
+        follows_back = False
+        
+        if current_user and current_user['id'] != profile['id']:
+            # Check if current user follows this profile
+            follow_check = supabase.table('user_follows').select('id').eq('follower_id', current_user['id']).eq('following_id', profile['id']).execute()
+            is_following = bool(follow_check.data)
+            
+            # Check if this profile follows current user back
+            follows_back_check = supabase.table('user_follows').select('id').eq('follower_id', profile['id']).eq('following_id', current_user['id']).execute()
+            follows_back = bool(follows_back_check.data)
+        
+        # Add follow status to profile
+        profile['is_following'] = is_following
+        profile['follows_back'] = follows_back
+        
         # Get user's public recipes (simplified for now)
         try:
             recipes_response = supabase.table('recipes').select('*').eq('user_id', profile['id']).eq('is_public', True).order('created_at', desc=True).limit(10).execute()
@@ -849,7 +1027,8 @@ def fork_recipe(recipe_id):
             'ingredients_json': original['ingredients_json'],
             'image_url': original['image_url'],
             'is_public': data.get('is_public', True),
-            'original_recipe_id': recipe_id
+            'original_recipe_id': recipe_id,
+            'is_fork': True
         }
         
         # Create the forked recipe
@@ -859,15 +1038,60 @@ def fork_recipe(recipe_id):
         
         forked_id = forked_recipe.data[0]['id']
         
-        # Create fork relationship
+        # Create fork relationship with enhanced data
         fork_relationship = {
             'original_recipe_id': recipe_id,
             'forked_recipe_id': forked_id,
             'forked_by_user_id': current_user['id'],
-            'fork_reason': data.get('fork_reason', '')
+            'fork_reason': data.get('fork_reason', ''),
+            'branch_name': data.get('branch_name', 'main')
         }
         
         supabase.table('recipe_forks').insert(fork_relationship).execute()
+        
+        # Create initial version (commit) for the forked recipe
+        version_data = {
+            'recipe_id': forked_id,
+            'version_number': 1,
+            'commit_message': f"Initial fork from recipe #{recipe_id}",
+            'author_id': current_user['id'],
+            'changes_json': {"action": "fork", "from_recipe_id": recipe_id},
+            'snapshot_json': {
+                'title': fork_data['title'],
+                'description': fork_data['description'],
+                'ingredients': json.loads(fork_data['ingredients_json']),
+                'steps': fork_data['steps'],
+                'servings': fork_data['servings'],
+                'category': fork_data['category'],
+                'tags': fork_data['tags']
+            }
+        }
+        supabase.table('recipe_versions').insert(version_data).execute()
+        
+        # Create main branch for the forked recipe
+        branch_data = {
+            'recipe_id': forked_id,
+            'branch_name': 'main',
+            'description': 'Main branch',
+            'created_by': current_user['id'],
+            'is_default': True
+        }
+        branch_response = supabase.table('recipe_branches').insert(branch_data).execute()
+        
+        # Update recipe with branch reference
+        if branch_response.data:
+            supabase.table('recipes').update({
+                'current_branch_id': branch_response.data[0]['id']
+            }).eq('id', forked_id).execute()
+        
+        # Add creator as contributor
+        contributor_data = {
+            'recipe_id': forked_id,
+            'contributor_id': current_user['id'],
+            'contribution_type': 'forker',
+            'commit_count': 1
+        }
+        supabase.table('recipe_contributors').insert(contributor_data).execute()
         
         return jsonify({
             "ok": True, 
@@ -879,8 +1103,31 @@ def fork_recipe(recipe_id):
 
 @app.route("/api/recipes/<int:recipe_id>/forks", methods=["GET"])
 def get_recipe_forks(recipe_id):
-    """Get all forks of a recipe"""
+    """Get all forks of a recipe with full lineage"""
     try:
+        # Use the database function to get fork tree
+        response = supabase.rpc('get_recipe_fork_tree', {
+            'p_recipe_id': recipe_id
+        }).execute()
+        
+        forks = []
+        for fork in response.data or []:
+            forks.append({
+                'id': fork['fork_id'],
+                'recipe_id': fork['forked_recipe_id'],
+                'title': fork['forked_recipe_title'],
+                'forked_by': {
+                    'id': fork['forked_by_id'],
+                    'name': fork['forked_by_name'],
+                    'username': fork['forked_by_username']
+                },
+                'fork_depth': fork['fork_depth'],
+                'created_at': fork['created_at']
+            })
+        
+        return jsonify({"forks": forks})
+    except Exception as e:
+        # Fallback to basic query if function doesn't exist
         response = supabase.table('recipe_forks').select('''
             *,
             forked_recipe:recipes!recipe_forks_forked_recipe_id_fkey(id, title, image_url, user_id),
@@ -888,6 +1135,258 @@ def get_recipe_forks(recipe_id):
         ''').eq('original_recipe_id', recipe_id).execute()
         
         return jsonify({"forks": response.data or []})
+
+# ================================================
+# Recipe Version History (Git-like Commits)
+# ================================================
+
+@app.route("/api/recipes/<int:recipe_id>/history", methods=["GET"])
+def get_recipe_history(recipe_id):
+    """Get full commit history of a recipe"""
+    try:
+        page = int(request.args.get('page', 1))
+        limit = min(int(request.args.get('limit', 20)), 50)
+        offset = (page - 1) * limit
+        
+        # Use the database function to get history with author info
+        response = supabase.rpc('get_recipe_history', {
+            'p_recipe_id': recipe_id,
+            'p_limit': limit,
+            'p_offset': offset
+        }).execute()
+        
+        commits = []
+        for commit in response.data or []:
+            commits.append({
+                'version': f"v{commit['version_number']}",
+                'version_id': commit['version_id'],
+                'message': commit['commit_message'],
+                'author': {
+                    'id': commit['author_id'],
+                    'name': commit['author_name'],
+                    'username': commit['author_username'],
+                    'avatar_url': commit['author_avatar']
+                },
+                'date': commit['created_at'],
+                'changes': commit['changes_json']
+            })
+        
+        return jsonify({"commits": commits})
+    except Exception as e:
+        # Fallback to basic query if function doesn't exist
+        response = supabase.table('recipe_versions').select('''
+            *,
+            author:profiles!recipe_versions_author_id_fkey(username, name, avatar_url)
+        ''').eq('recipe_id', recipe_id).order('version_number', desc=True).limit(limit).offset(offset).execute()
+        
+        commits = []
+        for version in response.data or []:
+            author = version.get('author', {}) or {}
+            commits.append({
+                'version': f"v{version['version_number']}",
+                'version_id': version['id'],
+                'message': version['commit_message'],
+                'author': {
+                    'name': author.get('name', 'Unknown'),
+                    'username': author.get('username', 'unknown'),
+                    'avatar_url': author.get('avatar_url', '')
+                },
+                'date': version['created_at'],
+                'changes': version.get('changes_json', {})
+            })
+        
+        return jsonify({"commits": commits})
+
+@app.route("/api/recipes/<int:recipe_id>/commit", methods=["POST"])
+@require_auth
+def create_recipe_commit(recipe_id):
+    """Create a new version (commit) for a recipe"""
+    try:
+        current_user = get_current_user()
+        data = request.json or {}
+        
+        commit_message = (data.get('message') or '').strip()
+        if not commit_message:
+            return jsonify({"error": "Commit message is required"}), 400
+        
+        # Check if user owns the recipe
+        recipe_check = supabase.table('recipes').select('*').eq('id', recipe_id).eq('user_id', current_user['id']).execute()
+        if not recipe_check.data:
+            return jsonify({"error": "Recipe not found or access denied"}), 404
+        
+        recipe = recipe_check.data[0]
+        
+        # Get current recipe state as snapshot
+        try:
+            ingredients = json.loads(recipe.get('ingredients_json', '[]'))
+        except:
+            ingredients = []
+        
+        snapshot = {
+            'title': recipe['title'],
+            'description': recipe.get('description', ''),
+            'ingredients': ingredients,
+            'steps': recipe.get('steps', ''),
+            'servings': recipe.get('servings', 2),
+            'category': recipe.get('category', ''),
+            'tags': recipe.get('tags', ''),
+            'prep_time': recipe.get('prep_time', 0),
+            'cook_time': recipe.get('cook_time', 0),
+            'difficulty': recipe.get('difficulty', 'Easy')
+        }
+        
+        # Create version using database function
+        try:
+            response = supabase.rpc('create_recipe_version', {
+                'p_recipe_id': recipe_id,
+                'p_author_id': current_user['id'],
+                'p_commit_message': commit_message,
+                'p_changes_json': data.get('changes', {}),
+                'p_snapshot_json': snapshot
+            }).execute()
+            
+            version_id = response.data
+            
+            return jsonify({
+                "ok": True,
+                "message": "Changes committed successfully!",
+                "version_id": version_id
+            })
+        except Exception as e:
+            # Fallback to manual creation
+            # Get next version number
+            version_response = supabase.table('recipe_versions').select('version_number').eq('recipe_id', recipe_id).order('version_number', desc=True).limit(1).execute()
+            next_version = 1
+            if version_response.data:
+                next_version = version_response.data[0]['version_number'] + 1
+            
+            # Create version
+            version_data = {
+                'recipe_id': recipe_id,
+                'version_number': next_version,
+                'commit_message': commit_message,
+                'author_id': current_user['id'],
+                'changes_json': data.get('changes', {}),
+                'snapshot_json': snapshot
+            }
+            
+            version_response = supabase.table('recipe_versions').insert(version_data).execute()
+            
+            if version_response.data:
+                return jsonify({
+                    "ok": True,
+                    "message": "Changes committed successfully!",
+                    "version_id": version_response.data[0]['id']
+                })
+            else:
+                return jsonify({"error": "Failed to create version"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/recipes/<int:recipe_id>/branches", methods=["GET"])
+def get_recipe_branches(recipe_id):
+    """Get all branches for a recipe"""
+    try:
+        response = supabase.table('recipe_branches').select('''
+            *,
+            creator:profiles!recipe_branches_created_by_fkey(username, name, avatar_url)
+        ''').eq('recipe_id', recipe_id).eq('is_active', True).order('created_at', desc=True).execute()
+        
+        branches = []
+        for branch in response.data or []:
+            creator = branch.get('creator', {}) or {}
+            branches.append({
+                'id': branch['id'],
+                'name': branch['branch_name'],
+                'description': branch.get('description', ''),
+                'is_default': branch.get('is_default', False),
+                'creator': {
+                    'name': creator.get('name', 'Unknown'),
+                    'username': creator.get('username', 'unknown'),
+                    'avatar_url': creator.get('avatar_url', '')
+                },
+                'created_at': branch['created_at']
+            })
+        
+        return jsonify({"branches": branches})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/recipes/<int:recipe_id>/branch", methods=["POST"])
+@require_auth
+def create_recipe_branch(recipe_id):
+    """Create a new branch (variation) for a recipe"""
+    try:
+        current_user = get_current_user()
+        data = request.json or {}
+        
+        branch_name = (data.get('name') or '').strip()
+        if not branch_name:
+            return jsonify({"error": "Branch name is required"}), 400
+        
+        # Validate branch name
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', branch_name):
+            return jsonify({"error": "Branch name can only contain letters, numbers, hyphens and underscores"}), 400
+        
+        # Check if user owns the recipe
+        recipe_check = supabase.table('recipes').select('*').eq('id', recipe_id).eq('user_id', current_user['id']).execute()
+        if not recipe_check.data:
+            return jsonify({"error": "Recipe not found or access denied"}), 404
+        
+        # Check if branch name already exists
+        existing_branch = supabase.table('recipe_branches').select('id').eq('recipe_id', recipe_id).eq('branch_name', branch_name).execute()
+        if existing_branch.data:
+            return jsonify({"error": "Branch name already exists"}), 400
+        
+        # Create branch
+        branch_data = {
+            'recipe_id': recipe_id,
+            'branch_name': branch_name,
+            'description': data.get('description', ''),
+            'created_by': current_user['id'],
+            'is_default': False
+        }
+        
+        response = supabase.table('recipe_branches').insert(branch_data).execute()
+        
+        if response.data:
+            return jsonify({
+                "ok": True,
+                "message": f"Branch '{branch_name}' created successfully!",
+                "branch": response.data[0]
+            })
+        else:
+            return jsonify({"error": "Failed to create branch"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/recipes/<int:recipe_id>/contributors", methods=["GET"])
+def get_recipe_contributors(recipe_id):
+    """Get all contributors to a recipe"""
+    try:
+        response = supabase.table('recipe_contributors').select('''
+            *,
+            contributor:profiles!recipe_contributors_contributor_id_fkey(username, name, avatar_url)
+        ''').eq('recipe_id', recipe_id).order('commit_count', desc=True).execute()
+        
+        contributors = []
+        for contrib in response.data or []:
+            contributor = contrib.get('contributor', {}) or {}
+            contributors.append({
+                'id': contrib['contributor_id'],
+                'name': contributor.get('name', 'Unknown'),
+                'username': contributor.get('username', 'unknown'),
+                'avatar_url': contributor.get('avatar_url', ''),
+                'contribution_type': contrib['contribution_type'],
+                'commit_count': contrib['commit_count'],
+                'first_contributed_at': contrib['first_contributed_at'],
+                'last_contributed_at': contrib['last_contributed_at']
+            })
+        
+        return jsonify({"contributors": contributors})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1394,6 +1893,313 @@ def unfollow_user(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ================================================
+# User Posts and Activity Feed System
+# ================================================
+
+@app.route("/api/posts", methods=["POST"])
+@require_auth
+def create_user_post():
+    """Create a new user post for activity feed"""
+    try:
+        current_user = get_current_user()
+        data = request.json or {}
+        
+        content = sanitize_input(data.get('content', ''), 1000)
+        if not content:
+            return jsonify({"error": "Content is required"}), 400
+        
+        post_data = {
+            'user_id': current_user['id'],
+            'content': content,
+            'post_type': data.get('post_type', 'general'),
+            'recipe_id': data.get('recipe_id'),
+            'group_id': data.get('group_id'),
+            'metadata': data.get('metadata', {}),
+            'is_public': data.get('is_public', True)
+        }
+        
+        response = supabase.table('user_posts').insert(post_data).execute()
+        
+        if response.data:
+            return jsonify({"ok": True, "post": response.data[0]})
+        else:
+            return jsonify({"error": "Failed to create post"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/posts/feed", methods=["GET"])
+@require_auth
+def get_activity_feed():
+    """Get activity feed for current user"""
+    try:
+        current_user = get_current_user()
+        feed_type = request.args.get('type', 'following')  # following, public, trending
+        limit = min(int(request.args.get('limit', 20)), 50)
+        
+        if feed_type == 'following':
+            # Get posts from users the current user follows
+            following_response = supabase.table('user_follows').select('following_id').eq('follower_id', current_user['id']).execute()
+            following_ids = [f['following_id'] for f in following_response.data] if following_response.data else []
+            following_ids.append(current_user['id'])  # Include own posts
+            
+            if following_ids:
+                posts_response = supabase.table('user_posts')\
+                    .select('*, profiles!user_id(username, name, avatar_url), recipes(id, title)')\
+                    .in_('user_id', following_ids)\
+                    .eq('is_public', True)\
+                    .order('created_at', desc=True)\
+                    .limit(limit)\
+                    .execute()
+            else:
+                posts_response = type('obj', (object,), {'data': []})()
+        
+        elif feed_type == 'public':
+            # Get all public posts
+            posts_response = supabase.table('user_posts')\
+                .select('*, profiles!user_id(username, name, avatar_url), recipes(id, title)')\
+                .eq('is_public', True)\
+                .order('created_at', desc=True)\
+                .limit(limit)\
+                .execute()
+        
+        else:  # trending, latest, etc.
+            posts_response = supabase.table('user_posts')\
+                .select('*, profiles!user_id(username, name, avatar_url), recipes(id, title)')\
+                .eq('is_public', True)\
+                .order('created_at', desc=True)\
+                .limit(limit)\
+                .execute()
+        
+        return jsonify({"ok": True, "posts": posts_response.data or []})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ================================================
+# Git-Style Repository Interface
+# ================================================
+
+@app.route("/api/recipes/<int:recipe_id>/stats", methods=["GET"])
+def get_recipe_stats(recipe_id):
+    """Get Git-style statistics for a recipe"""
+    try:
+        # Get recipe basic info
+        recipe_response = supabase.table('recipes').select('*').eq('id', recipe_id).execute()
+        if not recipe_response.data:
+            return jsonify({"error": "Recipe not found"}), 404
+        
+        recipe = recipe_response.data[0]
+        
+        # Get fork count (direct from recipe or calculate)
+        fork_count = recipe.get('fork_count', 0)
+        if fork_count == 0:
+            fork_response = supabase.table('recipe_forks').select('id', count='exact').eq('original_recipe_id', recipe_id).execute()
+            fork_count = fork_response.count or 0
+        
+        # Get version count
+        version_count = recipe.get('version_count', 0)
+        if version_count == 0:
+            version_response = supabase.table('recipe_versions').select('id', count='exact').eq('recipe_id', recipe_id).execute()
+            version_count = version_response.count or 0
+        
+        # Get contributor count
+        contributor_response = supabase.table('recipe_contributors').select('id', count='exact').eq('recipe_id', recipe_id).execute()
+        contributor_count = contributor_response.count or 0
+        
+        # Get branch count
+        branch_response = supabase.table('recipe_branches').select('id', count='exact').eq('recipe_id', recipe_id).eq('is_active', True).execute()
+        branch_count = branch_response.count or 0
+        
+        # Get stars (likes)
+        star_count = recipe.get('star_count', 0)
+        if star_count == 0:
+            star_response = supabase.table('recipe_likes').select('id', count='exact').eq('recipe_id', recipe_id).execute()
+            star_count = star_response.count or 0
+        
+        # Get latest commit info
+        latest_commit = None
+        version_response = supabase.table('recipe_versions').select('''
+            *,
+            author:profiles!recipe_versions_author_id_fkey(username, name, avatar_url)
+        ''').eq('recipe_id', recipe_id).order('version_number', desc=True).limit(1).execute()
+        
+        if version_response.data:
+            version = version_response.data[0]
+            author = version.get('author', {}) or {}
+            latest_commit = {
+                'version': f"v{version['version_number']}",
+                'message': version['commit_message'],
+                'author': {
+                    'name': author.get('name', 'Unknown'),
+                    'username': author.get('username', 'unknown'),
+                    'avatar_url': author.get('avatar_url', '')
+                },
+                'date': version['created_at']
+            }
+        
+        return jsonify({
+            "recipe_id": recipe_id,
+            "title": recipe['title'],
+            "is_fork": recipe.get('is_fork', False),
+            "original_recipe_id": recipe.get('original_recipe_id'),
+            "stats": {
+                "forks": fork_count,
+                "stars": star_count,
+                "versions": version_count,
+                "contributors": contributor_count,
+                "branches": branch_count
+            },
+            "latest_commit": latest_commit,
+            "created_at": recipe['created_at'],
+            "updated_at": recipe['updated_at']
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/recipes/<int:recipe_id>/network", methods=["GET"])
+def get_recipe_network(recipe_id):
+    """Get the fork network graph for a recipe"""
+    try:
+        # Find the root recipe (original)
+        recipe_response = supabase.table('recipes').select('*').eq('id', recipe_id).execute()
+        if not recipe_response.data:
+            return jsonify({"error": "Recipe not found"}), 404
+        
+        recipe = recipe_response.data[0]
+        root_recipe_id = recipe.get('original_recipe_id') or recipe_id
+        
+        # Get the complete fork tree starting from root
+        try:
+            network_response = supabase.rpc('get_recipe_fork_tree', {
+                'p_recipe_id': root_recipe_id
+            }).execute()
+        except:
+            # Fallback if function doesn't exist
+            network_response = supabase.table('recipe_forks').select('''
+                *,
+                forked_recipe:recipes!recipe_forks_forked_recipe_id_fkey(id, title),
+                forked_by:profiles!recipe_forks_forked_by_user_id_fkey(username, name)
+            ''').eq('original_recipe_id', root_recipe_id).execute()
+        
+        # Build network structure
+        network = {
+            "root": {
+                "id": root_recipe_id,
+                "title": recipe['title'] if recipe_id == root_recipe_id else "Original Recipe",
+                "owner": "system"  # Would need to fetch actual owner
+            },
+            "nodes": [],
+            "edges": []
+        }
+        
+        if hasattr(network_response, 'data') and network_response.data:
+            for fork in network_response.data:
+                if 'forked_recipe_id' in fork:  # New format
+                    network["nodes"].append({
+                        "id": fork['forked_recipe_id'],
+                        "title": fork.get('forked_recipe_title', 'Fork'),
+                        "owner": fork.get('forked_by_username', 'unknown'),
+                        "depth": fork.get('fork_depth', 1),
+                        "created_at": fork['created_at']
+                    })
+                else:  # Fallback format
+                    forked_recipe = fork.get('forked_recipe', {}) or {}
+                    forked_by = fork.get('forked_by', {}) or {}
+                    network["nodes"].append({
+                        "id": fork['forked_recipe_id'],
+                        "title": forked_recipe.get('title', 'Fork'),
+                        "owner": forked_by.get('username', 'unknown'),
+                        "depth": 1,
+                        "created_at": fork['created_at']
+                    })
+                
+                # Add edge from parent to this fork
+                network["edges"].append({
+                    "from": root_recipe_id,
+                    "to": fork['forked_recipe_id'],
+                    "type": "fork"
+                })
+        
+        return jsonify(network)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/recipes/<int:recipe_id>/compare/<int:other_recipe_id>", methods=["GET"])
+def compare_recipes(recipe_id, other_recipe_id):
+    """Compare two recipes (like GitHub compare)"""
+    try:
+        # Get both recipes
+        recipe1_response = supabase.table('recipes').select('*').eq('id', recipe_id).execute()
+        recipe2_response = supabase.table('recipes').select('*').eq('id', other_recipe_id).execute()
+        
+        if not recipe1_response.data or not recipe2_response.data:
+            return jsonify({"error": "One or both recipes not found"}), 404
+        
+        recipe1 = recipe1_response.data[0]
+        recipe2 = recipe2_response.data[0]
+        
+        # Calculate differences
+        differences = {}
+        
+        # Title difference
+        if recipe1['title'] != recipe2['title']:
+            differences['title'] = {
+                'base': recipe1['title'],
+                'compare': recipe2['title']
+            }
+        
+        # Ingredients difference
+        try:
+            ingredients1 = json.loads(recipe1.get('ingredients_json', '[]'))
+            ingredients2 = json.loads(recipe2.get('ingredients_json', '[]'))
+            
+            if ingredients1 != ingredients2:
+                differences['ingredients'] = {
+                    'base_count': len(ingredients1),
+                    'compare_count': len(ingredients2),
+                    'added': [],
+                    'removed': [],
+                    'modified': []
+                }
+                # Simple comparison - could be enhanced with proper diff algorithm
+        except:
+            pass
+        
+        # Steps difference
+        if recipe1.get('steps', '') != recipe2.get('steps', ''):
+            differences['steps'] = {
+                'base_length': len(recipe1.get('steps', '')),
+                'compare_length': len(recipe2.get('steps', '')),
+                'changed': True
+            }
+        
+        # Other field differences
+        for field in ['category', 'tags', 'servings', 'prep_time', 'cook_time', 'difficulty']:
+            if recipe1.get(field) != recipe2.get(field):
+                differences[field] = {
+                    'base': recipe1.get(field),
+                    'compare': recipe2.get(field)
+                }
+        
+        return jsonify({
+            "base_recipe": {
+                "id": recipe_id,
+                "title": recipe1['title']
+            },
+            "compare_recipe": {
+                "id": other_recipe_id,
+                "title": recipe2['title']
+            },
+            "differences": differences,
+            "has_changes": len(differences) > 0
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

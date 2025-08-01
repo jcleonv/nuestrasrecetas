@@ -310,6 +310,7 @@
 
     // Get group ID from URL
     const groupId = window.location.pathname.split('/').pop();
+    const currentGroupId = groupId; // For compatibility with existing functions
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {

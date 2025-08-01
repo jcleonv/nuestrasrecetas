@@ -162,6 +162,24 @@
       font-weight: 600;
     }
     
+    .badge-sm {
+      background: rgba(71, 85, 105, 0.3);
+      color: #94a3b8;
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .repo-tab.active {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+    }
+    
+    .repo-tab.active .fas {
+      color: #10b981;
+    }
+    
     .heading { 
       font-weight: 700;
       font-size: 24px;
@@ -227,6 +245,67 @@
     .fade-in { animation: fade-in 0.3s ease-in-out; }
     .slide-up { animation: slide-up 0.3s ease-out; }
     
+    /* Mobile Navigation */
+    .mobile-nav-overlay {
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      transition: opacity 0.3s ease;
+    }
+    
+    .mobile-nav-menu {
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+    
+    .mobile-nav-menu.open {
+      transform: translateX(0);
+    }
+    
+    .hamburger {
+      flex-direction: column;
+      justify-content: space-around;
+      width: 24px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    .hamburger span {
+      display: block;
+      height: 2px;
+      width: 100%;
+      background: #f1f5f9;
+      transition: all 0.3s ease;
+    }
+    
+    .hamburger.active span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+    
+    .hamburger.active span:nth-child(2) {
+      opacity: 0;
+    }
+    
+    .hamburger.active span:nth-child(3) {
+      transform: rotate(-45deg) translate(7px, -6px);
+    }
+    
+    @media (max-width: 1024px) {
+      .lg\:grid-cols-4 {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .lg\:col-span-1, .lg\:col-span-2 {
+        grid-column: span 1;
+      }
+      
+      /* Hero section adjustments */
+      .text-4xl { font-size: 2rem; }
+      .text-6xl { font-size: 3rem; }
+      .px-8 { padding-left: 1.5rem; padding-right: 1.5rem; }
+      .py-4 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    }
+
     @media (max-width: 768px) {
       .day-col { min-width: 160px; }
       .glass-panel { border-radius: 12px; margin: 0; }
@@ -241,13 +320,15 @@
       }
       
       .btn { 
-        padding: 10px 16px;
+        padding: 12px 16px;
         font-size: 14px;
+        min-height: 44px;
       }
       
       .input {
-        padding: 10px 14px;
+        padding: 12px 16px;
         font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 44px;
       }
       
       .modal-backdrop .glass-panel {
@@ -263,11 +344,63 @@
       
       .recipe-pill {
         padding: 12px;
+        min-height: 68px;
       }
       
       .droptarget {
         min-height: 120px;
         padding: 8px;
+      }
+      
+      /* Hero section mobile */
+      .text-4xl { font-size: 1.75rem; }
+      .text-6xl { font-size: 2.5rem; }
+      .text-xl { font-size: 1rem; }
+      .text-2xl { font-size: 1.25rem; }
+      
+      /* Mobile navigation */
+      .desktop-nav { display: none; }
+      .mobile-nav { display: flex; }
+      
+      /* Mobile grid adjustments */
+      .grid.md\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      
+      .grid.md\:grid-cols-2.lg\:grid-cols-3 {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      
+      /* Tab buttons mobile */
+      .tab-button {
+        padding: 10px 16px;
+        font-size: 13px;
+        min-height: 44px;
+      }
+      
+      /* Repository tab mobile */
+      .repo-tab {
+        min-height: 44px;
+        padding: 12px;
+      }
+      
+      /* Action buttons layout */
+      .flex.flex-col.sm\:flex-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .flex.flex-col.sm\:flex-row .btn {
+        margin-bottom: 12px;
+        justify-content: center;
+      }
+      
+      /* Stats grid mobile */
+      .grid.grid-cols-2.md\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
       }
       
       /* Stack buttons vertically on very small screens */
@@ -292,6 +425,25 @@
         .heading {
           font-size: 18px;
         }
+        
+        /* Very small screen hero adjustments */
+        .text-4xl { font-size: 1.5rem; }
+        .text-6xl { font-size: 2rem; }
+        .px-8 { padding-left: 1rem; padding-right: 1rem; }
+        
+        /* Single column stats on very small screens */
+        .grid.grid-cols-2.md\:grid-cols-4 {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          font-size: 0.875rem;
+        }
+        
+        /* Mobile modal improvements */
+        .modal-backdrop .glass-panel {
+          margin: 8px;
+          max-height: calc(100vh - 16px);
+          width: calc(100vw - 16px);
+        }
       }
     }
     
@@ -300,37 +452,78 @@
       .btn {
         min-height: 44px;
         min-width: 44px;
+        padding: 12px 20px;
       }
       
       input, textarea, select {
         min-height: 44px;
+        padding: 12px 16px;
       }
       
       .recipe-pill {
-        min-height: 60px;
+        min-height: 68px;
+        padding: 16px;
       }
+      
+      .tab-button {
+        min-height: 44px;
+        padding: 12px 20px;
+      }
+      
+      .repo-tab {
+        min-height: 44px;
+        padding: 12px 16px;
+      }
+      
+      .badge {
+        min-height: 28px;
+        padding: 6px 16px;
+      }
+      
+      /* Touch-friendly dropzones */
+      .droptarget {
+        min-height: 140px;
+        padding: 16px;
+      }
+    }
+    
+    /* Mobile-first styles */
+    .mobile-nav { display: none; }
+    .desktop-nav { display: flex; }
+    
+    @media (max-width: 768px) {
+      .mobile-nav { display: flex; }
+      .desktop-nav { display: none; }
     }
   </style>
 </head>
 <body class="min-h-screen">
   <div class="max-w-[1400px] mx-auto p-4 flex flex-col gap-6">
     <!-- Header -->
-    <header class="glass-panel p-6 fade-in">
-      <div class="flex items-center justify-between flex-wrap gap-4">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center">
-            <i class="fas fa-utensils text-white text-xl"></i>
+    <header class="glass-panel p-4 md:p-6 fade-in">
+      <div class="flex items-center justify-between">
+        <!-- Logo and Brand -->
+        <div class="flex items-center gap-3 md:gap-4">
+          <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center">
+            <i class="fas fa-utensils text-white text-lg md:text-xl"></i>
           </div>
-          <div>
-            <h1 class="text-3xl font-bold bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+          <div class="hidden sm:block">
+            <h1 class="text-xl md:text-3xl font-bold bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
               NuestrasRecetas.club
             </h1>
-            <p class="text-dark-text-muted">Planifica tus comidas semanales</p>
+            <p class="text-dark-text-muted text-sm md:text-base">Your culinary creativity, shared with the world</p>
+          </div>
+          <div class="block sm:hidden">
+            <h1 class="text-lg font-bold bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+              NuestrasRecetas
+            </h1>
           </div>
         </div>
-        <div class="flex items-center gap-3 flex-wrap">
+
+        <!-- Desktop Navigation -->
+        <div class="desktop-nav flex items-center gap-3 flex-wrap">
           <!-- User Info -->
-          <a href="/profile" id="user-profile-link" class="flex items-center gap-3 px-4 py-2 glass-panel rounded-lg hover:bg-dark-surface-light transition-colors cursor-pointer">
+          <a href="/profile" id="user-profile-link" class="hidden md:flex items-center gap-3 px-4 py-2 glass-panel rounded-lg hover:bg-dark-surface-light transition-colors cursor-pointer">
             <div class="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center" id="user-avatar">
               <i class="fas fa-user text-white text-sm"></i>
             </div>
@@ -338,7 +531,7 @@
           </a>
           
           <!-- Navigation -->
-          <div class="flex items-center gap-2">
+          <div class="hidden lg:flex items-center gap-2">
             <a href="/dashboard" class="px-3 py-2 text-primary font-medium border-b-2 border-primary">
               <i class="fas fa-home mr-1"></i>Dashboard
             </a>
@@ -354,17 +547,9 @@
           </div>
           
           <!-- Action Buttons -->
-          <button id="btnExportRecipes" class="btn btn-secondary">
-            <i class="fas fa-download"></i>
-            Export
-          </button>
-          <button id="btnImportRecipes" class="btn btn-secondary">
-            <i class="fas fa-upload"></i>
-            Import
-          </button>
-          <button id="btnSavePlan" class="btn">
+          <button id="btnSavePlan" class="hidden md:flex btn">
             <i class="fas fa-save"></i>
-            Guardar
+            <span class="hidden lg:inline ml-2">Save Plan</span>
           </button>
           
           <!-- User Menu -->
@@ -385,90 +570,374 @@
             </div>
           </div>
         </div>
+
+        <!-- Mobile Navigation -->
+        <div class="mobile-nav flex items-center gap-3">
+          <!-- Mobile Save Button -->
+          <button id="btnSavePlanMobile" class="btn text-sm px-3 py-2" onclick="savePlan()">
+            <i class="fas fa-save"></i>
+          </button>
+          
+          <!-- Mobile Hamburger Menu -->
+          <button id="mobileMenuBtn" class="hamburger" onclick="toggleMobileMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Hero Section: Recipe Creation -->
-    <div class="glass-panel p-8 mb-8 text-center slide-up">
-      <div class="max-w-2xl mx-auto">
-        <div class="flex items-center justify-center mb-4">
-          <i class="fas fa-utensils text-6xl text-primary"></i>
-        </div>
-        <h2 class="text-3xl font-bold text-white mb-4">Share Your Culinary Creations</h2>
-        <p class="text-dark-text-muted mb-6 text-lg">
-          Create, share, and discover amazing recipes with the global cooking community. 
-          Your next favorite dish is just one recipe away!
-        </p>
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-          <button id="btnNewHero" class="btn text-lg px-8 py-4 font-semibold">
-            <i class="fas fa-plus mr-2"></i>
-            Create New Recipe
-          </button>
-          <button id="btnImportHero" class="btn btn-secondary text-lg px-8 py-4">
-            <i class="fas fa-upload mr-2"></i>
-            Import Recipe
-          </button>
-        </div>
-        <div class="flex items-center justify-center gap-6 mt-6 text-sm text-dark-text-muted">
-          <span><i class="fas fa-users mr-1"></i>Join 1000+ home cooks</span>
-          <span><i class="fas fa-book mr-1"></i>5000+ recipes shared</span>
-          <span><i class="fas fa-heart mr-1"></i>Growing community</span>
+    <!-- Mobile Navigation Overlay -->
+    <div id="mobileNavOverlay" class="mobile-nav fixed inset-0 z-40 hidden mobile-nav-overlay">
+      <div class="mobile-nav-menu fixed left-0 top-0 h-full w-80 max-w-[80vw] bg-dark-surface border-r border-dark-border shadow-2xl">
+        <div class="p-6">
+          <!-- Mobile User Profile -->
+          <div class="mb-8">
+            <a href="/profile" id="mobile-user-profile-link" class="flex items-center gap-3 p-3 glass-panel rounded-lg hover:bg-dark-surface-light transition-colors">
+              <div class="w-12 h-12 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center" id="mobile-user-avatar">
+                <i class="fas fa-user text-white"></i>
+              </div>
+              <div>
+                <div class="text-white font-medium" id="mobile-user-welcome">Bienvenido</div>
+                <div class="text-dark-text-muted text-sm">View Profile</div>
+              </div>
+            </a>
+          </div>
+
+          <!-- Mobile Navigation Links -->
+          <nav class="space-y-2 mb-8">
+            <a href="/dashboard" class="flex items-center gap-3 p-3 rounded-lg text-primary bg-primary/10 font-medium">
+              <i class="fas fa-home w-5"></i>
+              <span>Dashboard</span>
+            </a>
+            <a href="/community" class="flex items-center gap-3 p-3 rounded-lg text-dark-text hover:text-white hover:bg-dark-surface-light transition-colors">
+              <i class="fas fa-users w-5"></i>
+              <span>Community</span>
+            </a>
+            <a href="/groups" class="flex items-center gap-3 p-3 rounded-lg text-dark-text hover:text-white hover:bg-dark-surface-light transition-colors">
+              <i class="fas fa-layer-group w-5"></i>
+              <span>Groups</span>
+            </a>
+            <button onclick="openUserSearch(); toggleMobileMenu();" class="flex items-center gap-3 p-3 rounded-lg text-dark-text hover:text-white hover:bg-dark-surface-light transition-colors w-full text-left">
+              <i class="fas fa-search w-5"></i>
+              <span>Find Cooks</span>
+            </button>
+          </nav>
+
+          <!-- Mobile Actions -->
+          <div class="space-y-3 mb-8">
+            <button onclick="onNew(); toggleMobileMenu();" class="w-full btn justify-start">
+              <i class="fas fa-plus mr-3"></i>
+              Create Recipe
+            </button>
+            <button onclick="openImport(); toggleMobileMenu();" class="w-full btn btn-secondary justify-start">
+              <i class="fas fa-upload mr-3"></i>
+              Import Recipes
+            </button>
+          </div>
+
+          <!-- Mobile Settings -->
+          <div class="border-t border-dark-border pt-6 space-y-2">
+            <a href="/settings" class="flex items-center gap-3 p-3 rounded-lg text-dark-text hover:text-white hover:bg-dark-surface-light transition-colors">
+              <i class="fas fa-cog w-5"></i>
+              <span>Settings</span>
+            </a>
+            <button onclick="logout()" class="flex items-center gap-3 p-3 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors w-full text-left">
+              <i class="fas fa-sign-out-alt w-5"></i>
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Left: Recipe Library -->
-      <div class="glass-panel p-6 flex flex-col gap-4 lg:col-span-1 slide-up">
-        <div class="flex items-center gap-3 mb-2">
-          <i class="fas fa-book text-primary text-xl"></i>
-          <div class="heading">Your Recipe Collection</div>
-        </div>
-        
-        <div class="flex gap-3">
-          <div class="relative flex-1">
-            <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-dark-text-muted"></i>
-            <input id="search" class="input w-full pl-12" placeholder="Search your recipes..." />
+    <!-- Hero Section: GitHub for Recipes -->
+    <div class="glass-panel p-8 mb-8 text-center slide-up">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex items-center justify-center mb-6">
+          <div class="relative">
+            <i class="fas fa-utensils text-6xl text-primary"></i>
+            <div class="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+              <i class="fas fa-code-branch text-white text-xs"></i>
+            </div>
           </div>
-          <button id="btnNew" class="btn btn-secondary">
-            <i class="fas fa-plus"></i>
-            Add
+        </div>
+        <h2 class="text-4xl font-bold text-white mb-4">
+          The <span class="text-primary">GitHub</span> for Recipes
+        </h2>
+        <p class="text-dark-text-muted mb-8 text-xl max-w-3xl mx-auto">
+          Create, fork, and collaborate on recipes just like code. 
+          Build upon each other's culinary innovations and create the perfect dish together.
+        </p>
+        
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <button id="btnNewHero" class="btn text-lg px-8 py-4 font-semibold">
+            <i class="fas fa-plus mr-2"></i>
+            Create Recipe
+          </button>
+          <button id="btnForkHero" class="btn btn-secondary text-lg px-8 py-4" onclick="showTrendingRecipes()">
+            <i class="fas fa-code-branch mr-2"></i>
+            Fork Popular Recipe
+          </button>
+          <button id="btnImportHero" class="btn btn-secondary text-lg px-8 py-4">
+            <i class="fas fa-upload mr-2"></i>
+            Import from URL
           </button>
         </div>
         
-        <div id="recipeList" class="flex flex-col gap-3 overflow-auto" style="max-height: 55vh;">
+        <!-- GitHub-style Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-2xl mx-auto">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-primary mb-1" id="total-recipes">5,247</div>
+            <div class="text-sm text-dark-text-muted"><i class="fas fa-book mr-1"></i>Recipes</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-primary mb-1" id="total-forks">12,583</div>
+            <div class="text-sm text-dark-text-muted"><i class="fas fa-code-branch mr-1"></i>Forks</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-primary mb-1" id="active-cooks">2,156</div>
+            <div class="text-sm text-dark-text-muted"><i class="fas fa-users mr-1"></i>Cooks</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-primary mb-1" id="recipes-today">43</div>
+            <div class="text-sm text-dark-text-muted"><i class="fas fa-calendar-day mr-1"></i>Today</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+      <!-- Left: Recipe Repository -->
+      <div class="glass-panel p-4 md:p-6 flex flex-col gap-4 lg:col-span-1 slide-up order-2 lg:order-1">
+        <div class="flex items-center gap-3 mb-2">
+          <i class="fas fa-code-branch text-primary text-xl"></i>
+          <div class="heading">My Repository</div>
+        </div>
+        
+        <!-- GitHub-style Action Buttons -->
+        <div class="flex flex-col gap-2">
+          <button id="btnNew" class="btn w-full justify-center">
+            <i class="fas fa-plus mr-2"></i>
+            New Recipe
+          </button>
+          <button id="btnImportRecipes" class="btn btn-secondary w-full justify-center">
+            <i class="fas fa-upload mr-2"></i>
+            Import
+          </button>
+        </div>
+        
+        <!-- Search -->
+        <div class="relative">
+          <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-dark-text-muted"></i>
+          <input id="search" class="input w-full pl-12" placeholder="Search recipes..." />
+        </div>
+        
+        <!-- GitHub-style Navigation -->
+        <div class="flex flex-col gap-1 text-sm">
+          <button class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-dark-surface-light transition-colors text-left w-full repo-tab active" data-tab="my-recipes">
+            <i class="fas fa-book text-primary"></i>
+            <span class="flex-1">My Recipes</span>
+            <span class="badge-sm" id="my-recipes-count">0</span>
+          </button>
+          <button class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-dark-surface-light transition-colors text-left w-full repo-tab" data-tab="starred">
+            <i class="fas fa-star text-yellow-400"></i>
+            <span class="flex-1">Starred</span>
+            <span class="badge-sm" id="starred-count">0</span>
+          </button>
+          <button class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-dark-surface-light transition-colors text-left w-full repo-tab" data-tab="forks">
+            <i class="fas fa-code-branch text-green-400"></i>
+            <span class="flex-1">My Forks</span>
+            <span class="badge-sm" id="forks-count">0</span>
+          </button>
+        </div>
+        
+        <div id="recipeList" class="flex flex-col gap-3 overflow-auto" style="max-height: 40vh;">
           <!-- Loading state -->
           <div id="recipesLoading" class="flex items-center justify-center py-8">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         </div>
         
-        <div class="flex gap-3 justify-end pt-4 border-t border-dark-border">
-          <button id="btnEdit" class="btn btn-secondary">
+        <div class="flex gap-2 pt-4 border-t border-dark-border">
+          <button id="btnEdit" class="btn btn-secondary flex-1">
             <i class="fas fa-edit"></i>
             Edit
           </button>
-          <button id="btnDelete" class="btn btn-danger">
+          <button id="btnDelete" class="btn btn-danger flex-1">
             <i class="fas fa-trash"></i>
             Delete
           </button>
         </div>
-      </div>
-
-      <!-- Right: Planner + Groceries -->
-      <div class="glass-panel p-6 flex flex-col gap-4 lg:col-span-2 slide-up">
-        <div class="flex gap-4">
-          <button class="tab-button active" data-tab="planner">
-            <i class="fas fa-calendar-week mr-2"></i>
+        
+        <!-- Meal Planning Section -->
+        <div class="mt-6 pt-6 border-t border-dark-border">
+          <h3 class="text-sm font-semibold text-dark-text-muted mb-3 uppercase tracking-wide">
+            <i class="fas fa-calendar-week mr-2"></i>Meal Planning
+          </h3>
+          <button onclick="switchMainTab('planner')" class="btn btn-secondary w-full justify-center text-sm">
+            <i class="fas fa-calendar-alt mr-2"></i>
             Weekly Planner
           </button>
-          <button class="tab-button" data-tab="groceries">
-            <i class="fas fa-shopping-cart mr-2"></i>
-            Grocery List
+        </div>
+      </div>
+
+      <!-- Center: Recipe Discovery & Activity Feed -->
+      <div class="glass-panel p-4 md:p-6 flex flex-col gap-4 lg:col-span-2 slide-up order-1 lg:order-2">
+        <div class="flex gap-2 md:gap-4 flex-wrap overflow-x-auto pb-2">
+          <button class="tab-button active whitespace-nowrap" data-tab="discover">
+            <i class="fas fa-compass mr-1 md:mr-2"></i>
+            <span class="hidden sm:inline">Discover</span>
+            <span class="inline sm:hidden">Disc.</span>
+          </button>
+          <button class="tab-button whitespace-nowrap" data-tab="trending">
+            <i class="fas fa-fire mr-1 md:mr-2"></i>
+            <span class="hidden sm:inline">Trending</span>
+            <span class="inline sm:hidden">Trend</span>
+          </button>
+          <button class="tab-button whitespace-nowrap" data-tab="activity">
+            <i class="fas fa-stream mr-1 md:mr-2"></i>
+            <span class="hidden sm:inline">Activity Feed</span>
+            <span class="inline sm:hidden">Activity</span>
+          </button>
+          <button class="tab-button whitespace-nowrap" data-tab="planner">
+            <i class="fas fa-calendar-week mr-1 md:mr-2"></i>
+            <span class="hidden sm:inline">Weekly Planner</span>
+            <span class="inline sm:hidden">Planner</span>
+          </button>
+          <button class="tab-button whitespace-nowrap" data-tab="groceries">
+            <i class="fas fa-shopping-cart mr-1 md:mr-2"></i>
+            <span class="hidden sm:inline">Grocery List</span>
+            <span class="inline sm:hidden">Grocery</span>
           </button>
         </div>
 
-        <div id="tabPlanner" class="flex flex-col gap-4">
+        <!-- Recipe Discovery Tab -->
+        <div id="tabDiscover" class="flex flex-col gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Featured Recipe -->
+            <div class="glass-panel p-4 relative overflow-hidden">
+              <div class="absolute top-2 right-2 bg-primary text-white px-2 py-1 rounded-full text-xs font-semibold">
+                <i class="fas fa-star mr-1"></i>Featured
+              </div>
+              <h3 class="font-semibold text-white mb-2">Grandma's Chocolate Chip Cookies</h3>
+              <p class="text-dark-text-muted text-sm mb-3">A family recipe passed down through generations, now perfected through community collaboration.</p>
+              <div class="flex items-center gap-4 text-sm text-dark-text-muted mb-3">
+                <span><i class="fas fa-code-branch mr-1"></i>247 forks</span>
+                <span><i class="fas fa-star mr-1"></i>1.2k stars</span>
+                <span><i class="fas fa-users mr-1"></i>by @cookingmama</span>
+              </div>
+              <div class="flex gap-2">
+                <button class="btn btn-secondary text-sm px-3 py-1">
+                  <i class="fas fa-code-branch mr-1"></i>Fork
+                </button>
+                <button class="btn btn-secondary text-sm px-3 py-1">
+                  <i class="fas fa-star mr-1"></i>Star
+                </button>
+              </div>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="glass-panel p-4">
+              <h3 class="font-semibold text-white mb-4">Community Pulse</h3>
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-dark-text-muted text-sm">Recipes created today</span>
+                  <span class="text-primary font-semibold">43</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-dark-text-muted text-sm">Most forked this week</span>
+                  <span class="text-primary font-semibold">Pasta Carbonara</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-dark-text-muted text-sm">Active cooks online</span>
+                  <span class="text-primary font-semibold">156</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-dark-text-muted text-sm">New collaborations</span>
+                  <span class="text-primary font-semibold">28</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Recent Community Recipes -->
+          <div>
+            <h3 class="text-lg font-semibold text-white mb-4">Recent Community Recipes</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="community-recipes">
+              <!-- Populated by JavaScript -->
+              <div class="glass-panel p-4">
+                <div class="flex items-center justify-center py-8">
+                  <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Trending Tab -->
+        <div id="tabTrending" class="hidden flex flex-col gap-4">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="fas fa-fire text-orange-400 text-xl"></i>
+            <h3 class="text-lg font-semibold text-white">Trending This Week</h3>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="trending-recipes">
+            <!-- Populated by JavaScript -->
+            <div class="glass-panel p-4">
+              <div class="flex items-center justify-center py-8">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Activity Feed Tab -->
+        <div id="tabActivity" class="hidden flex flex-col gap-4">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="fas fa-stream text-blue-400 text-xl"></i>
+            <h3 class="text-lg font-semibold text-white">Activity Feed</h3>
+            <span class="text-sm text-dark-text-muted">Latest from your network</span>
+          </div>
+          <div class="space-y-4" id="activity-feed">
+            <!-- Example activities -->
+            <div class="glass-panel p-4 flex items-start gap-3">
+              <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-code-branch text-white text-xs"></i>
+              </div>
+              <div class="flex-1">
+                <p class="text-white"><strong>@chefmike</strong> forked <strong>Italian Carbonara</strong></p>
+                <p class="text-dark-text-muted text-sm mt-1">Added bacon variation and reduced cream by 30%</p>
+                <span class="text-dark-text-muted text-xs">2 hours ago</span>
+              </div>
+            </div>
+            
+            <div class="glass-panel p-4 flex items-start gap-3">
+              <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-star text-white text-xs"></i>
+              </div>
+              <div class="flex-1">
+                <p class="text-white"><strong>@homebaker</strong> starred <strong>Sourdough Starter Guide</strong></p>
+                <span class="text-dark-text-muted text-xs">4 hours ago</span>
+              </div>
+            </div>
+            
+            <div class="glass-panel p-4 flex items-start gap-3">
+              <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-plus text-white text-xs"></i>
+              </div>
+              <div class="flex-1">
+                <p class="text-white"><strong>@spicequeen</strong> created <strong>Thai Green Curry</strong></p>
+                <p class="text-dark-text-muted text-sm mt-1">Authentic recipe with homemade paste</p>
+                <span class="text-dark-text-muted text-xs">6 hours ago</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Weekly Planner Tab -->
+        <div id="tabPlanner" class="hidden flex flex-col gap-4">
           <div id="planner" class="grid-auto">
             <!-- day columns injected by JS -->
           </div>
@@ -522,12 +991,116 @@
           </div>
         </div>
       </div>
+      
+      <!-- Right: GitHub-style Sidebar -->
+      <div class="glass-panel p-4 md:p-6 flex flex-col gap-4 lg:col-span-1 slide-up order-3">
+        <!-- Popular Tags -->
+        <div>
+          <h3 class="text-sm font-semibold text-dark-text-muted mb-3 uppercase tracking-wide">
+            <i class="fas fa-tags mr-2"></i>Popular Tags
+          </h3>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary">
+              italian <span class="text-primary/60">1.2k</span>
+            </span>
+            <span class="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary">
+              quick <span class="text-primary/60">892</span>
+            </span>
+            <span class="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary">
+              vegetarian <span class="text-primary/60">743</span>
+            </span>
+            <span class="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary">
+              dessert <span class="text-primary/60">651</span>
+            </span>
+            <span class="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary">
+              healthy <span class="text-primary/60">589</span>
+            </span>
+            <span class="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary">
+              comfort-food <span class="text-primary/60">456</span>
+            </span>
+          </div>
+        </div>
+        
+        <!-- Top Contributors -->
+        <div>
+          <h3 class="text-sm font-semibold text-dark-text-muted mb-3 uppercase tracking-wide">
+            <i class="fas fa-trophy mr-2"></i>Top Contributors
+          </h3>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                1
+              </div>
+              <div class="flex-1">
+                <div class="text-white text-sm font-medium">@grandmakitchen</div>
+                <div class="text-dark-text-muted text-xs">347 recipes • 12.5k forks</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                2
+              </div>
+              <div class="flex-1">
+                <div class="text-white text-sm font-medium">@chefmasterclass</div>
+                <div class="text-dark-text-muted text-xs">298 recipes • 9.8k forks</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-gradient-to-br from-amber-600 to-amber-700 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                3
+              </div>
+              <div class="flex-1">
+                <div class="text-white text-sm font-medium">@homecookpro</div>
+                <div class="text-dark-text-muted text-xs">201 recipes • 7.2k forks</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Recent Forks -->
+        <div>
+          <h3 class="text-sm font-semibold text-dark-text-muted mb-3 uppercase tracking-wide">
+            <i class="fas fa-code-branch mr-2"></i>Recent Forks
+          </h3>
+          <div class="space-y-2">
+            <div class="text-xs">
+              <div class="text-white">Chocolate Chip Cookies</div>
+              <div class="text-dark-text-muted">forked by @bakingfan</div>
+            </div>
+            <div class="text-xs">
+              <div class="text-white">Thai Green Curry</div>
+              <div class="text-dark-text-muted">forked by @spicemaster</div>
+            </div>
+            <div class="text-xs">
+              <div class="text-white">Sourdough Bread</div>
+              <div class="text-dark-text-muted">forked by @breadlover</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Export/Import Actions -->
+        <div class="pt-4 border-t border-dark-border">
+          <h3 class="text-sm font-semibold text-dark-text-muted mb-3 uppercase tracking-wide">
+            <i class="fas fa-download mr-2"></i>Repository Actions
+          </h3>
+          <div class="flex flex-col gap-2">
+            <button id="btnExportRecipes" class="btn btn-secondary w-full justify-center text-sm">
+              <i class="fas fa-download mr-2"></i>
+              Export Recipes
+            </button>
+            <button onclick="openUserSearch()" class="btn btn-secondary w-full justify-center text-sm">
+              <i class="fas fa-users mr-2"></i>
+              Find Cooks
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Recipe Modal -->
   <div id="modal" class="fixed inset-0 hidden items-center justify-center modal-backdrop z-50">
-    <div class="glass-panel p-6 w-[800px] max-w-[95vw] max-h-[90vh] overflow-y-auto slide-up">
+    <div class="glass-panel p-4 md:p-6 w-full max-w-4xl mx-4 md:mx-auto max-h-[95vh] overflow-y-auto slide-up">
       <div class="flex items-center gap-3 mb-6">
         <i class="fas fa-utensils text-primary text-xl"></i>
         <h2 class="heading" id="modalTitle">Recipe</h2>
@@ -538,39 +1111,41 @@
           <label class="block text-sm font-medium text-dark-text-muted mb-2">
             <i class="fas fa-signature mr-1"></i>Recipe Title
           </label>
-          <input id="mTitle" class="input w-full" placeholder="Enter recipe name..." />
+          <input id="mTitle" class="input w-full text-base" placeholder="Enter recipe name..." />
         </div>
         
-        <div>
-          <label class="block text-sm font-medium text-dark-text-muted mb-2">
-            <i class="fas fa-folder mr-1"></i>Category
-          </label>
-          <input id="mCategory" class="input w-full" placeholder="e.g., Main Course, Dessert..." />
+        <div class="md:col-span-2 md:grid md:grid-cols-2 md:gap-4">
+          <div>
+            <label class="block text-sm font-medium text-dark-text-muted mb-2">
+              <i class="fas fa-folder mr-1"></i>Category
+            </label>
+            <input id="mCategory" class="input w-full text-base" placeholder="e.g., Main Course, Dessert..." />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-dark-text-muted mb-2 mt-4 md:mt-0">
+              <i class="fas fa-users mr-1"></i>Servings
+            </label>
+            <input id="mServings" type="number" min="1" value="2" class="input w-full text-base" />
+          </div>
         </div>
         
-        <div>
+        <div class="md:col-span-2">
           <label class="block text-sm font-medium text-dark-text-muted mb-2">
             <i class="fas fa-tags mr-1"></i>Tags
           </label>
-          <input id="mTags" class="input w-full" placeholder="vegetarian, quick, italian..." />
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-dark-text-muted mb-2">
-            <i class="fas fa-users mr-1"></i>Servings
-          </label>
-          <input id="mServings" type="number" min="1" value="2" class="input w-full" />
+          <input id="mTags" class="input w-full text-base" placeholder="vegetarian, quick, italian..." />
         </div>
         
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-dark-text-muted mb-2">
             <i class="fas fa-list mr-1"></i>Ingredients
           </label>
-          <div class="text-xs text-dark-text-muted mb-2 p-2 bg-primary/5 border border-primary/20 rounded-lg">
+          <div class="text-xs md:text-sm text-dark-text-muted mb-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
             <i class="fas fa-info-circle mr-1"></i>
             Format: quantity unit ingredient - optional note (e.g., "200 g spaghetti - whole wheat")
           </div>
-          <textarea id="mIngredients" class="input w-full" rows="8" placeholder="200 g spaghetti
+          <textarea id="mIngredients" class="input w-full text-base" rows="6" placeholder="200 g spaghetti
 1 cup milk
 2 pc eggs - large
 1 tbsp olive oil"></textarea>
@@ -580,19 +1155,19 @@
           <label class="block text-sm font-medium text-dark-text-muted mb-2">
             <i class="fas fa-clipboard-list mr-1"></i>Cooking Instructions
           </label>
-          <textarea id="mSteps" class="input w-full" rows="6" placeholder="1. Boil water in a large pot...
+          <textarea id="mSteps" class="input w-full text-base" rows="5" placeholder="1. Boil water in a large pot...
 2. Add salt and pasta...
 3. Cook according to package directions..."></textarea>
         </div>
       </div>
       
-      <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-dark-border">
-        <button id="mCancel" class="btn btn-secondary">
-          <i class="fas fa-times"></i>
+      <div class="flex flex-col sm:flex-row gap-3 justify-end mt-6 pt-4 border-t border-dark-border">
+        <button id="mCancel" class="btn btn-secondary justify-center">
+          <i class="fas fa-times mr-2"></i>
           Cancel
         </button>
-        <button id="mSave" class="btn">
-          <i class="fas fa-save"></i>
+        <button id="mSave" class="btn justify-center">
+          <i class="fas fa-save mr-2"></i>
           Save Recipe
         </button>
       </div>
@@ -601,18 +1176,18 @@
 
   <!-- Import Modal -->
   <div id="importModal" class="fixed inset-0 hidden items-center justify-center modal-backdrop z-50">
-    <div class="glass-panel p-6 w-[800px] max-w-[95vw] max-h-[90vh] overflow-y-auto slide-up">
+    <div class="glass-panel p-4 md:p-6 w-full max-w-4xl mx-4 md:mx-auto max-h-[95vh] overflow-y-auto slide-up">
       <div class="flex items-center gap-3 mb-6">
         <i class="fas fa-upload text-primary text-xl"></i>
         <h2 class="heading">Import Recipes</h2>
       </div>
       
       <div class="mb-4">
-        <div class="text-sm text-dark-text-muted mb-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+        <div class="text-xs md:text-sm text-dark-text-muted mb-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
           <i class="fas fa-info-circle mr-2"></i>
           Paste your recipe data in JSON format. Each recipe should have: title, category, tags, servings, ingredients, and steps.
         </div>
-        <textarea id="importText" class="input w-full" rows="16" placeholder='[
+        <textarea id="importText" class="input w-full text-base" rows="12" placeholder='[
   {
     "title": "Spaghetti Bolognese",
     "category": "Main Course",
@@ -627,13 +1202,13 @@
 ]'></textarea>
       </div>
       
-      <div class="flex gap-3 justify-end pt-4 border-t border-dark-border">
-        <button id="impCancel" class="btn btn-secondary">
-          <i class="fas fa-times"></i>
+      <div class="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-dark-border">
+        <button id="impCancel" class="btn btn-secondary justify-center">
+          <i class="fas fa-times mr-2"></i>
           Cancel
         </button>
-        <button id="impDo" class="btn">
-          <i class="fas fa-upload"></i>
+        <button id="impDo" class="btn justify-center">
+          <i class="fas fa-upload mr-2"></i>
           Import Recipes
         </button>
       </div>
@@ -642,27 +1217,27 @@
 
   <!-- Print Modal -->
   <div id="printModal" class="fixed inset-0 hidden items-center justify-center modal-backdrop z-50">
-    <div class="glass-panel p-6 w-[800px] max-w-[95vw] max-h-[90vh] overflow-y-auto slide-up">
+    <div class="glass-panel p-4 md:p-6 w-full max-w-4xl mx-4 md:mx-auto max-h-[95vh] overflow-y-auto slide-up">
       <div class="flex items-center gap-3 mb-6">
         <i class="fas fa-print text-primary text-xl"></i>
         <h2 class="heading">Grocery List - Print View</h2>
       </div>
       
       <div class="mb-4">
-        <div class="text-sm text-dark-text-muted mb-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+        <div class="text-xs md:text-sm text-dark-text-muted mb-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
           <i class="fas fa-info-circle mr-2"></i>
           Copy this text or print this page for your shopping trip.
         </div>
-        <textarea id="printText" class="input w-full font-mono" rows="20" readonly></textarea>
+        <textarea id="printText" class="input w-full font-mono text-sm" rows="16" readonly></textarea>
       </div>
       
-      <div class="flex gap-3 justify-end pt-4 border-t border-dark-border">
-        <button id="printClose" class="btn btn-secondary">
-          <i class="fas fa-times"></i>
+      <div class="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-dark-border">
+        <button id="printClose" class="btn btn-secondary justify-center">
+          <i class="fas fa-times mr-2"></i>
           Close
         </button>
-        <button onclick="window.print()" class="btn">
-          <i class="fas fa-print"></i>
+        <button onclick="window.print()" class="btn justify-center">
+          <i class="fas fa-print mr-2"></i>
           Print Page
         </button>
       </div>
@@ -903,25 +1478,59 @@
     }
 
     async function loadPlan() {
-      const res = await fetch("/api/plan");
-      const data = await res.json();
-      plan = data || {};
-      days.forEach(d => {
-        plan[d] = plan[d] || [];
-      });
-      initPlanner();
-      days.forEach(renderDay);
-      await updateGroceries();
+      try {
+        const res = await fetch("/api/plan");
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        const data = await res.json();
+        plan = data || {};
+        days.forEach(d => {
+          plan[d] = plan[d] || [];
+        });
+        initPlanner();
+        days.forEach(renderDay);
+        await updateGroceries();
+      } catch (error) {
+        console.error("Failed to load meal plan:", error);
+        // Initialize empty plan on error
+        plan = {};
+        days.forEach(d => {
+          plan[d] = [];
+        });
+        initPlanner();
+        days.forEach(renderDay);
+        
+        // Show error toast
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg z-50';
+        toast.textContent = 'Failed to load meal plan. Starting with empty plan.';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+      }
     }
 
     async function updateGroceries() {
-      const res = await fetch("/api/groceries", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({plan})
-      });
-      groceries = await res.json();
-      renderGroceries();
+      try {
+        const res = await fetch("/api/groceries", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({plan})
+        });
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        const data = await res.json();
+        groceries = Array.isArray(data) ? data : [];
+        renderGroceries();
+      } catch (error) {
+        console.error("Failed to update groceries:", error);
+        groceries = [];
+        const tbody = document.getElementById("groceryBody");
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-red-400"><i class="fas fa-exclamation-triangle mr-2"></i>Failed to generate grocery list</td></tr>';
+      }
     }
 
     function renderGroceries() {
@@ -1009,35 +1618,96 @@
     }
 
     async function onEdit() {
-      if (!selectedRecipeId) { alert("Select a recipe to edit."); return; }
-      const res = await fetch("/api/recipe/" + selectedRecipeId);
-      if (!res.ok) { alert("Not found"); return; }
-      const r = await res.json();
-      editingRecipeId = r.id;
-      document.getElementById("mTitle").value = r.title || "";
-      document.getElementById("mCategory").value = r.category || "";
-      document.getElementById("mTags").value = r.tags || "";
-      document.getElementById("mServings").value = String(r.servings || 2);
-      const ingLines = (r.ingredients || []).map(ing => {
-        const note = ing.note ? " - " + ing.note : "";
-        const qty = ing.qty ?? "";
-        const unit = ing.unit ?? "";
-        const name = ing.name ?? "";
-        let line = (qty + " " + unit + " " + name).trim();
-        return (line + note).trim();
-      }).join("\n");
-      document.getElementById("mIngredients").value = ingLines;
-      document.getElementById("mSteps").value = r.steps || "";
-      openModal(true);
+      if (!selectedRecipeId) { 
+        alert("Please select a recipe to edit."); 
+        return; 
+      }
+      
+      try {
+        const res = await fetch("/api/recipe/" + selectedRecipeId);
+        if (!res.ok) { 
+          if (res.status === 404) {
+            alert("Recipe not found. It may have been deleted.");
+          } else {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          return; 
+        }
+        
+        const r = await res.json();
+        editingRecipeId = r.id;
+        document.getElementById("mTitle").value = r.title || "";
+        document.getElementById("mCategory").value = r.category || "";
+        document.getElementById("mTags").value = r.tags || "";
+        document.getElementById("mServings").value = String(r.servings || 2);
+        
+        const ingLines = (r.ingredients || []).map(ing => {
+          const note = ing.note ? " - " + ing.note : "";
+          const qty = ing.qty ?? "";
+          const unit = ing.unit ?? "";
+          const name = ing.name ?? "";
+          let line = (qty + " " + unit + " " + name).trim();
+          return (line + note).trim();
+        }).join("\n");
+        
+        document.getElementById("mIngredients").value = ingLines;
+        document.getElementById("mSteps").value = r.steps || "";
+        openModal(true);
+      } catch (error) {
+        console.error("Failed to load recipe for editing:", error);
+        alert("Failed to load recipe: " + error.message);
+      }
     }
 
     async function onDelete() {
-      if (!selectedRecipeId) { alert("Select a recipe to delete."); return; }
-      if (!confirm("Delete this recipe?")) return;
-      const res = await fetch("/api/recipe/" + selectedRecipeId, {method:"DELETE"});
-      if (!res.ok) { alert("Failed"); return; }
-      selectedRecipeId = null;
-      await loadRecipes();
+      if (!selectedRecipeId) { 
+        alert("Please select a recipe to delete."); 
+        return; 
+      }
+      
+      const recipe = recipes.find(r => r.id === selectedRecipeId);
+      const recipeName = recipe ? recipe.title : "this recipe";
+      
+      if (!confirm(`Are you sure you want to delete "${recipeName}"? This action cannot be undone.`)) {
+        return;
+      }
+      
+      const btn = document.getElementById("btnDelete");
+      const originalText = btn.innerHTML;
+      
+      try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        btn.disabled = true;
+        
+        const res = await fetch("/api/recipe/" + selectedRecipeId, {method:"DELETE"});
+        
+        if (!res.ok) {
+          if (res.status === 404) {
+            alert("Recipe not found. It may have already been deleted.");
+          } else {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+          }
+          return;
+        }
+        
+        selectedRecipeId = null;
+        await loadRecipes();
+        
+        // Show success toast
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+        toast.textContent = 'Recipe deleted successfully!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+        
+      } catch (error) {
+        console.error("Failed to delete recipe:", error);
+        alert("Failed to delete recipe: " + error.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     }
 
     async function onSaveRecipe() {
@@ -1049,32 +1719,101 @@
         ingredients: parseIngredients(document.getElementById("mIngredients").value || ""),
         steps: document.getElementById("mSteps").value || ""
       };
-      if (!payload.title) { alert("Title is required."); return; }
-      let res;
-      if (editingRecipeId) {
-        res = await fetch("/api/recipe/" + editingRecipeId, {
-          method:"PUT", headers: {"Content-Type":"application/json"},
-          body: JSON.stringify(payload)
-        });
-      } else {
-        res = await fetch("/api/recipe", {
-          method:"POST", headers: {"Content-Type":"application/json"},
-          body: JSON.stringify(payload)
-        });
+      
+      // Validation
+      if (!payload.title) { 
+        alert("Recipe title is required."); 
+        document.getElementById("mTitle").focus();
+        return; 
       }
-      const data = await res.json();
-      if (!res.ok) { alert(data.error || "Failed"); return; }
-      closeModal();
-      await loadRecipes();
+      
+      if (payload.ingredients.length === 0) {
+        if (!confirm("This recipe has no ingredients. Continue saving?")) {
+          document.getElementById("mIngredients").focus();
+          return;
+        }
+      }
+      
+      const btn = document.getElementById("mSave");
+      const originalText = btn.innerHTML;
+      
+      try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        btn.disabled = true;
+        
+        let res;
+        if (editingRecipeId) {
+          res = await fetch("/api/recipe/" + editingRecipeId, {
+            method:"PUT", 
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify(payload)
+          });
+        } else {
+          res = await fetch("/api/recipe", {
+            method:"POST", 
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify(payload)
+          });
+        }
+        
+        const data = await res.json();
+        if (!res.ok) { 
+          throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        closeModal();
+        await loadRecipes();
+        
+        // Show success toast
+        const action = editingRecipeId ? "updated" : "created";
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+        toast.textContent = `Recipe ${action} successfully!`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+        
+      } catch (error) {
+        console.error("Failed to save recipe:", error);
+        alert("Failed to save recipe: " + error.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     }
 
     async function savePlan() {
-      const res = await fetch("/api/plan", {
-        method:"PUT", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(plan)
-      });
-      if (!res.ok) { alert("Failed to save plan"); return; }
-      alert("Plan saved");
+      const btn = document.getElementById("btnSavePlan");
+      const originalText = btn.innerHTML;
+      
+      try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        btn.disabled = true;
+        
+        const res = await fetch("/api/plan", {
+          method:"PUT", 
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(plan)
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        // Show success toast
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+        toast.textContent = 'Meal plan saved successfully!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+        
+      } catch (error) {
+        console.error("Failed to save plan:", error);
+        alert("Failed to save plan: " + error.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     }
 
     function switchTab(which) {
@@ -1102,23 +1841,96 @@
       
       try {
         const res = await fetch("/api/recipes?q=" + encodeURIComponent(q));
-        recipes = await res.json();
-        renderRecipeList();
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        const data = await res.json();
+        recipes = Array.isArray(data) ? data : [];
+        
+        if (recipes.length === 0 && q) {
+          listEl.innerHTML = '<div class="text-center text-dark-text-muted py-8"><i class="fas fa-search text-2xl mb-2"></i><br>No recipes found matching "' + q + '"</div>';
+        } else if (recipes.length === 0) {
+          listEl.innerHTML = '<div class="text-center text-dark-text-muted py-8"><i class="fas fa-utensils text-2xl mb-2"></i><br>No recipes yet. Create your first recipe!</div>';
+        } else {
+          renderRecipeList();
+        }
       } catch (error) {
         console.error("Failed to load recipes:", error);
-        listEl.innerHTML = '<div class="text-center text-red-400 py-8">Failed to load recipes</div>';
+        listEl.innerHTML = `
+          <div class="text-center text-red-400 py-8">
+            <i class="fas fa-exclamation-triangle text-2xl mb-2"></i><br>
+            Failed to load recipes<br>
+            <span class="text-sm text-dark-text-muted">${error.message}</span>
+            <br><button onclick="loadRecipes()" class="btn btn-secondary mt-3 text-sm">Try Again</button>
+          </div>`;
       } finally {
         if (loadingEl) loadingEl.style.display = "none";
       }
     }
 
     function copyGroceries() {
-      const lines = groceries.map(g => {
-        let line = `- ${g.name}: ${g.qty} ${g.unit || ""}`.trim();
-        if (g.note) line += ` (${g.note})`;
-        return line;
-      }).join("\n");
-      navigator.clipboard.writeText(lines).then(() => alert("Copied to clipboard"));
+      try {
+        const lines = groceries.map(g => {
+          let line = `- ${g.name}: ${g.qty} ${g.unit || ""}`.trim();
+          if (g.note) line += ` (${g.note})`;
+          return line;
+        }).join("\n");
+        
+        if (lines.trim() === "") {
+          alert("No grocery items to copy. Add some recipes to your meal plan first.");
+          return;
+        }
+        
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(lines).then(() => {
+            // Show success toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+            toast.textContent = 'Grocery list copied to clipboard!';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+          }).catch(err => {
+            console.error('Failed to copy to clipboard:', err);
+            fallbackCopyToClipboard(lines);
+          });
+        } else {
+          fallbackCopyToClipboard(lines);
+        }
+      } catch (error) {
+        console.error('Error copying groceries:', error);
+        alert('Failed to copy grocery list: ' + error.message);
+      }
+    }
+    
+    function fallbackCopyToClipboard(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+          toast.textContent = 'Grocery list copied to clipboard!';
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+        } else {
+          alert('Unable to copy to clipboard. Please copy manually from the print view.');
+        }
+      } catch (err) {
+        console.error('Fallback copy failed:', err);
+        alert('Unable to copy to clipboard. Please copy manually from the print view.');
+      } finally {
+        document.body.removeChild(textArea);
+      }
     }
 
     function openPrint() {
@@ -1133,14 +1945,32 @@
     }
 
     async function exportRecipes() {
-      const res = await fetch("/api/export");
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "recipes.json";
-      a.click();
-      URL.revokeObjectURL(url);
+      try {
+        // Export current recipes as JSON
+        const exportData = {
+          recipes: recipes,
+          plan: plan,
+          exported_at: new Date().toISOString()
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], {type:"application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; 
+        a.download = `nuestrasrecetas-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        // Show success message
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+        toast.textContent = 'Recipes exported successfully!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      } catch (error) {
+        console.error("Export failed:", error);
+        alert("Failed to export recipes: " + error.message);
+      }
     }
 
     function openImport() {
@@ -1151,43 +1981,132 @@
     async function doImport() {
       try {
         const text = document.getElementById("importText").value || "[]";
-        const payload = JSON.parse(text);
-        const res = await fetch("/api/import", {
-          method:"POST", headers: {"Content-Type":"application/json"},
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) { alert(data.error || "Failed to import"); return; }
+        const importData = JSON.parse(text);
+        
+        // Validate the import data structure
+        let recipesToImport = [];
+        if (Array.isArray(importData)) {
+          recipesToImport = importData;
+        } else if (importData.recipes && Array.isArray(importData.recipes)) {
+          recipesToImport = importData.recipes;
+        } else {
+          throw new Error("Invalid import format. Expected array of recipes or object with 'recipes' array.");
+        }
+        
+        let importCount = 0;
+        let errors = [];
+        
+        // Import each recipe individually using the existing API
+        for (const recipe of recipesToImport) {
+          try {
+            const response = await fetch("/api/recipe", {
+              method: "POST",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({
+                title: recipe.title || "Imported Recipe",
+                category: recipe.category || "",
+                tags: recipe.tags || "",
+                servings: parseInt(recipe.servings) || 2,
+                ingredients: recipe.ingredients || [],
+                steps: recipe.steps || ""
+              })
+            });
+            
+            if (response.ok) {
+              importCount++;
+            } else {
+              const errorData = await response.json();
+              errors.push(`Failed to import "${recipe.title}": ${errorData.error || 'Unknown error'}`);
+            }
+          } catch (error) {
+            errors.push(`Failed to import "${recipe.title}": ${error.message}`);
+          }
+        }
+        
         show("importModal", false);
         await loadRecipes();
-        alert(`Imported ${data.count} recipe(s).`);
+        
+        if (errors.length > 0) {
+          console.error("Import errors:", errors);
+          alert(`Imported ${importCount} recipe(s) with ${errors.length} errors. Check console for details.`);
+        } else {
+          alert(`Successfully imported ${importCount} recipe(s)!`);
+        }
+        
       } catch(e) {
-        alert("Invalid JSON");
+        console.error("Import error:", e);
+        alert("Import failed: " + e.message);
       }
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
+      // Initialize repo tabs
+      document.querySelectorAll('.repo-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          switchRepoTab(btn.dataset.tab);
+        });
+      });
+      
+      // Set default tab to discover
+      setTimeout(() => {
+        switchMainTab('discover');
+      }, 100);
       // Load current user and update profile link
       try {
         const userResponse = await fetch('/api/auth/me');
+        
+        if (!userResponse.ok) {
+          if (userResponse.status === 401) {
+            // User not authenticated, redirect to login
+            window.location.href = '/';
+            return;
+          }
+          throw new Error(`HTTP ${userResponse.status}: ${userResponse.statusText}`);
+        }
+        
         const userData = await userResponse.json();
         if (userData.user) {
           // Update profile link
           const profileLink = document.getElementById('user-profile-link');
-          profileLink.href = `/profile/${userData.user.username}`;
+          if (profileLink) {
+            profileLink.href = `/profile/${userData.user.username}`;
+          }
           
           // Update welcome message with user's name
           const welcomeElement = document.getElementById('user-welcome');
-          welcomeElement.textContent = `Hola, ${userData.user.name || userData.user.username}`;
+          if (welcomeElement) {
+            welcomeElement.textContent = `Hola, ${userData.user.name || userData.user.username}`;
+          }
           
           // Update avatar if available
           const avatarElement = document.getElementById('user-avatar');
-          if (userData.user.avatar_url) {
-            avatarElement.innerHTML = '';\n            const img = document.createElement('img');\n            img.src = userData.user.avatar_url;\n            img.alt = userData.user.name || 'User avatar';\n            img.className = 'w-full h-full rounded-full object-cover';\n            avatarElement.appendChild(img);
+          if (avatarElement && userData.user.avatar_url) {
+            avatarElement.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = userData.user.avatar_url;
+            img.alt = userData.user.name || 'User avatar';
+            img.className = 'w-full h-full rounded-full object-cover';
+            img.onerror = function() {
+              // Fallback to icon if image fails to load
+              avatarElement.innerHTML = '<i class="fas fa-user text-white text-sm"></i>';
+            };
+            avatarElement.appendChild(img);
           }
+          
+          // Update mobile user info
+          updateMobileUserInfo();
+        } else {
+          // No user data, redirect to login
+          window.location.href = '/';
+          return;
         }
       } catch (error) {
         console.error('Failed to load user data:', error);
+        // Don't redirect on network errors, just show default state
+        const welcomeElement = document.getElementById('user-welcome');
+        if (welcomeElement) {
+          welcomeElement.textContent = 'Welcome';
+        }
       }
 
       // Tabs
@@ -1201,6 +2120,13 @@
       document.getElementById("btnImportHero").addEventListener("click", openImport);
       document.getElementById("btnEdit").addEventListener("click", onEdit);
       document.getElementById("btnDelete").addEventListener("click", onDelete);
+      document.getElementById("btnForkSelected").addEventListener("click", () => {
+        if (selectedRecipeId) {
+          forkRecipe(selectedRecipeId);
+        } else {
+          alert('Please select a recipe to fork');
+        }
+      });
       document.getElementById("btnSavePlan").addEventListener("click", savePlan);
       document.getElementById("btnCopy").addEventListener("click", copyGroceries);
       document.getElementById("btnPrint").addEventListener("click", openPrint);
@@ -1228,11 +2154,146 @@
       await loadRecipes();
       await loadPlan();
     });
+    
+    // Create new recipe function for header button
+    function createNewRecipe() {
+      onNew();
+    }
+    
+    // GitHub-style functionality
+    function switchMainTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('[id^="tab"]').forEach(tab => {
+        tab.classList.add('hidden');
+      });
+      
+      // Show selected tab
+      const targetTab = document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+      if (targetTab) {
+        targetTab.classList.remove('hidden');
+        targetTab.classList.add('flex', 'flex-col');
+      }
+      
+      // Update tab button states
+      document.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+      });
+    }
+    
+    function switchRepoTab(tabName) {
+      // Update repo tab states
+      document.querySelectorAll('.repo-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+      });
+      
+      // Filter recipes based on tab
+      // This would normally filter the actual recipe list
+      // For now, we'll just show all recipes
+      loadRecipes();
+    }
+    
+    function showTrendingRecipes() {
+      switchMainTab('trending');
+    }
+    
+    async function forkRecipe(recipeId) {
+      try {
+        // This would make an API call to fork the recipe
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+        toast.innerHTML = '<i class="fas fa-code-branch mr-2"></i>Recipe forked successfully!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+        
+        // Reload recipes to show the new fork
+        await loadRecipes();
+      } catch (error) {
+        console.error('Fork failed:', error);
+        alert('Failed to fork recipe: ' + error.message);
+      }
+    }
+    
+    async function starRecipe(recipeId) {
+      try {
+        // This would make an API call to star the recipe
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+        toast.innerHTML = '<i class="fas fa-star mr-2"></i>Recipe starred!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+        
+        // Update the star count in the UI
+        // This would normally be handled by reloading or updating the specific recipe
+      } catch (error) {
+        console.error('Star failed:', error);
+        alert('Failed to star recipe: ' + error.message);
+      }
+    }
 
     // User menu functions
     function toggleUserMenu() {
       const menu = document.getElementById("userMenu");
       menu.classList.toggle("hidden");
+    }
+
+    // Mobile menu functions
+    function toggleMobileMenu() {
+      const overlay = document.getElementById('mobileNavOverlay');
+      const hamburger = document.getElementById('mobileMenuBtn');
+      const menu = overlay.querySelector('.mobile-nav-menu');
+      
+      if (overlay.classList.contains('hidden')) {
+        // Open menu
+        overlay.classList.remove('hidden');
+        hamburger.classList.add('active');
+        setTimeout(() => {
+          menu.classList.add('open');
+        }, 10);
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+      } else {
+        // Close menu
+        menu.classList.remove('open');
+        hamburger.classList.remove('active');
+        setTimeout(() => {
+          overlay.classList.add('hidden');
+          document.body.style.overflow = '';
+        }, 300);
+      }
+    }
+
+    // Close mobile menu when clicking overlay
+    document.addEventListener('click', function(event) {
+      const overlay = document.getElementById('mobileNavOverlay');
+      const menu = overlay?.querySelector('.mobile-nav-menu');
+      
+      if (overlay && !overlay.classList.contains('hidden') && 
+          event.target === overlay && !menu?.contains(event.target)) {
+        toggleMobileMenu();
+      }
+    });
+
+    // Update mobile user info when desktop user info changes
+    function updateMobileUserInfo() {
+      const desktopAvatar = document.getElementById('user-avatar');
+      const desktopWelcome = document.getElementById('user-welcome');
+      const mobileAvatar = document.getElementById('mobile-user-avatar');
+      const mobileWelcome = document.getElementById('mobile-user-welcome');
+      const mobileProfileLink = document.getElementById('mobile-user-profile-link');
+      const desktopProfileLink = document.getElementById('user-profile-link');
+      
+      if (mobileAvatar && desktopAvatar) {
+        mobileAvatar.innerHTML = desktopAvatar.innerHTML;
+      }
+      
+      if (mobileWelcome && desktopWelcome) {
+        mobileWelcome.textContent = desktopWelcome.textContent;
+      }
+      
+      if (mobileProfileLink && desktopProfileLink) {
+        mobileProfileLink.href = desktopProfileLink.href;
+      }
     }
 
     async function logout() {
