@@ -1106,8 +1106,22 @@
 
     function loadMyNetworkCounts() {
       if (currentUser) {
-        document.getElementById('following-count').textContent = currentUser.following_count || 0;
-        document.getElementById('followers-count').textContent = currentUser.followers_count || 0;
+        // Always fetch fresh counts from the server
+        fetch('/api/auth/me')
+          .then(response => response.json())
+          .then(data => {
+            if (data.user) {
+              currentUser = data.user;
+              document.getElementById('following-count').textContent = data.user.following_count || 0;
+              document.getElementById('followers-count').textContent = data.user.followers_count || 0;
+            }
+          })
+          .catch(error => {
+            console.error('Failed to load network counts:', error);
+            // Fallback to currentUser data if available
+            document.getElementById('following-count').textContent = currentUser.following_count || 0;
+            document.getElementById('followers-count').textContent = currentUser.followers_count || 0;
+          });
       }
     }
 

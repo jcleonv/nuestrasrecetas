@@ -751,7 +751,7 @@ def get_feed():
         
         # Get feed using the database function
         response = supabase.rpc('get_user_feed', {
-            'user_id': current_user['id'],
+            'input_user_id': current_user['id'],
             'page_limit': limit,
             'page_offset': offset
         }).execute()
