@@ -1,9 +1,10 @@
 -- Migration: Add recipe forks and user posts tables
 -- Created: 2025-01-01
 -- Description: Add tables for recipe forking functionality and user posts/activity feed
+-- Fixed: Added IF NOT EXISTS and proper policy cleanup
 
 -- Create recipe_forks table for tracking recipe forking relationships
-CREATE TABLE public.recipe_forks (
+CREATE TABLE IF NOT EXISTS public.recipe_forks (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     original_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
     forked_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
@@ -14,14 +15,29 @@ CREATE TABLE public.recipe_forks (
     UNIQUE(original_recipe_id, forked_by)
 );
 
--- Create indexes for performance
-CREATE INDEX idx_recipe_forks_original ON public.recipe_forks(original_recipe_id);
-CREATE INDEX idx_recipe_forks_forked ON public.recipe_forks(forked_recipe_id);
-CREATE INDEX idx_recipe_forks_user ON public.recipe_forks(forked_by);
-CREATE INDEX idx_recipe_forks_created_at ON public.recipe_forks(created_at);
+-- Create indexes for performance (with IF NOT EXISTS equivalent)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_original') THEN
+        CREATE INDEX idx_recipe_forks_original ON public.recipe_forks(original_recipe_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_forked') THEN
+        CREATE INDEX idx_recipe_forks_forked ON public.recipe_forks(forked_recipe_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_user') THEN
+        CREATE INDEX idx_recipe_forks_user ON public.recipe_forks(forked_by);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_recipe_forks_created_at') THEN
+        CREATE INDEX idx_recipe_forks_created_at ON public.recipe_forks(created_at);
+    END IF;
+END
+$$;
 
 -- Create user_posts table for activity feed and community posts
-CREATE TABLE public.user_posts (
+CREATE TABLE IF NOT EXISTS public.user_posts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
@@ -34,13 +50,34 @@ CREATE TABLE public.user_posts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes for user_posts
-CREATE INDEX idx_user_posts_user ON public.user_posts(user_id);
-CREATE INDEX idx_user_posts_type ON public.user_posts(post_type);
-CREATE INDEX idx_user_posts_recipe ON public.user_posts(recipe_id) WHERE recipe_id IS NOT NULL;
-CREATE INDEX idx_user_posts_group ON public.user_posts(group_id) WHERE group_id IS NOT NULL;
-CREATE INDEX idx_user_posts_created_at ON public.user_posts(created_at);
-CREATE INDEX idx_user_posts_public_feed ON public.user_posts(created_at, is_public) WHERE is_public = true;
+-- Create indexes for user_posts (with IF NOT EXISTS equivalent)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_user_posts_user') THEN
+        CREATE INDEX idx_user_posts_user ON public.user_posts(user_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_user_posts_type') THEN
+        CREATE INDEX idx_user_posts_type ON public.user_posts(post_type);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_user_posts_recipe') THEN
+        CREATE INDEX idx_user_posts_recipe ON public.user_posts(recipe_id) WHERE recipe_id IS NOT NULL;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_user_posts_group') THEN
+        CREATE INDEX idx_user_posts_group ON public.user_posts(group_id) WHERE group_id IS NOT NULL;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_user_posts_created_at') THEN
+        CREATE INDEX idx_user_posts_created_at ON public.user_posts(created_at);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_user_posts_public_feed') THEN
+        CREATE INDEX idx_user_posts_public_feed ON public.user_posts(created_at, is_public) WHERE is_public = true;
+    END IF;
+END
+$$;
 
 -- Add trigger to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -59,6 +96,18 @@ CREATE TRIGGER update_user_posts_updated_at BEFORE UPDATE ON public.user_posts
 -- Recipe forks policies
 ALTER TABLE public.recipe_forks ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DO $$
+BEGIN
+    -- Drop recipe_forks policies
+    DROP POLICY IF EXISTS "Public recipe forks are viewable by everyone" ON public.recipe_forks;
+    DROP POLICY IF EXISTS "Users can create their own recipe forks" ON public.recipe_forks;
+    DROP POLICY IF EXISTS "Users can delete their own recipe forks" ON public.recipe_forks;
+EXCEPTION
+    WHEN undefined_object THEN NULL;
+END
+$$;
+
 -- Users can view all public recipe forks
 CREATE POLICY "Public recipe forks are viewable by everyone"
 ON public.recipe_forks FOR SELECT
@@ -76,6 +125,18 @@ USING (auth.uid() = forked_by);
 
 -- User posts policies
 ALTER TABLE public.user_posts ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing user_posts policies if they exist
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "Users can view public posts and their own posts" ON public.user_posts;
+    DROP POLICY IF EXISTS "Users can create their own posts" ON public.user_posts;
+    DROP POLICY IF EXISTS "Users can update their own posts" ON public.user_posts;
+    DROP POLICY IF EXISTS "Users can delete their own posts" ON public.user_posts;
+EXCEPTION
+    WHEN undefined_object THEN NULL;
+END
+$$;
 
 -- Users can view public posts and their own posts
 CREATE POLICY "Users can view public posts and their own posts"

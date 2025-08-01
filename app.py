@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-NuestrasRecetas.club - Pure Supabase Implementation
+NuestrasRecetas.club - Git for Food Platform
+Revolutionary recipe version control system with forking, branching, and collaboration
 Flask app using Supabase directly without SQLAlchemy
 """
 
