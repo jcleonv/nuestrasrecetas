@@ -1360,51 +1360,7 @@ def unfollow_user(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/users/<user_id>/followers", methods=["GET"])
-@require_auth
-def get_user_followers(user_id):
-    """Get list of user's followers"""
-    try:
-        response = supabase.table('user_follows').select('''
-            follower_id,
-            profiles!user_follows_follower_id_fkey(username, name, avatar_url)
-        ''').eq('following_id', user_id).execute()
-        
-        followers = []
-        for follow in response.data or []:
-            if follow.get('profiles'):
-                followers.append({
-                    'id': follow['follower_id'],
-                    **follow['profiles']
-                })
-        
-        return jsonify({"followers": followers})
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route("/api/users/<user_id>/following", methods=["GET"])
-@require_auth
-def get_user_following(user_id):
-    """Get list of users that this user follows"""
-    try:
-        response = supabase.table('user_follows').select('''
-            following_id,
-            profiles!user_follows_following_id_fkey(username, name, avatar_url)
-        ''').eq('follower_id', user_id).execute()
-        
-        following = []
-        for follow in response.data or []:
-            if follow.get('profiles'):
-                following.append({
-                    'id': follow['following_id'],
-                    **follow['profiles']
-                })
-        
-        return jsonify({"following": following})
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = config.PORT
