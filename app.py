@@ -829,9 +829,31 @@ def list_groups():
         # Check if groups table exists
         try:
             if supabase:
-                # Try to query groups table directly
-                response = supabase.table('groups').select('*').eq('is_public', True).limit(10).execute()
-                groups = response.data or []
+                # Query groups with owner information
+                response = supabase.table('groups').select('''
+                    *,
+                    profiles!groups_owner_id_fkey(username, name, avatar_url)
+                ''').eq('is_public', True).limit(20).execute()
+                
+                groups = []
+                for group in response.data or []:
+                    # Add owner information
+                    owner = group.get('profiles', {})
+                    group_data = {
+                        **group,
+                        'owner_name': owner.get('name', 'Unknown'),
+                        'owner_username': owner.get('username', 'unknown'),
+                        'owner_avatar': owner.get('avatar_url', ''),
+                        'post_count': 0,  # TODO: Add actual post count
+                        'is_member': False  # TODO: Check membership
+                    }
+                    
+                    # Check if current user is a member
+                    if current_user:
+                        member_check = supabase.table('group_members').select('*').eq('group_id', group['id']).eq('user_id', current_user['id']).execute()
+                        group_data['is_member'] = len(member_check.data or []) > 0
+                    
+                    groups.append(group_data)
             else:
                 groups = []
         except Exception as e:
