@@ -330,12 +330,12 @@
         </div>
         <div class="flex items-center gap-3 flex-wrap">
           <!-- User Info -->
-          <div class="flex items-center gap-3 px-4 py-2 glass-panel rounded-lg">
-            <div class="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center">
+          <a href="/profile" id="user-profile-link" class="flex items-center gap-3 px-4 py-2 glass-panel rounded-lg hover:bg-dark-surface-light transition-colors cursor-pointer">
+            <div class="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center" id="user-avatar">
               <i class="fas fa-user text-white text-sm"></i>
             </div>
-            <span class="text-dark-text text-sm font-medium">Bienvenido</span>
-          </div>
+            <span class="text-dark-text text-sm font-medium" id="user-welcome">Bienvenido</span>
+          </a>
           
           <!-- Navigation -->
           <div class="flex items-center gap-2">
@@ -348,6 +348,9 @@
             <a href="/groups" class="px-3 py-2 text-dark-text-muted hover:text-primary transition-colors">
               <i class="fas fa-layer-group mr-1"></i>Groups
             </a>
+            <button onclick="openUserSearch()" class="px-3 py-2 text-dark-text-muted hover:text-primary transition-colors">
+              <i class="fas fa-search mr-1"></i>Find Cooks
+            </button>
           </div>
           
           <!-- Action Buttons -->
@@ -385,22 +388,51 @@
       </div>
     </header>
 
+    <!-- Hero Section: Recipe Creation -->
+    <div class="glass-panel p-8 mb-8 text-center slide-up">
+      <div class="max-w-2xl mx-auto">
+        <div class="flex items-center justify-center mb-4">
+          <i class="fas fa-utensils text-6xl text-primary"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-white mb-4">Share Your Culinary Creations</h2>
+        <p class="text-dark-text-muted mb-6 text-lg">
+          Create, share, and discover amazing recipes with the global cooking community. 
+          Your next favorite dish is just one recipe away!
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <button id="btnNewHero" class="btn text-lg px-8 py-4 font-semibold">
+            <i class="fas fa-plus mr-2"></i>
+            Create New Recipe
+          </button>
+          <button id="btnImportHero" class="btn btn-secondary text-lg px-8 py-4">
+            <i class="fas fa-upload mr-2"></i>
+            Import Recipe
+          </button>
+        </div>
+        <div class="flex items-center justify-center gap-6 mt-6 text-sm text-dark-text-muted">
+          <span><i class="fas fa-users mr-1"></i>Join 1000+ home cooks</span>
+          <span><i class="fas fa-book mr-1"></i>5000+ recipes shared</span>
+          <span><i class="fas fa-heart mr-1"></i>Growing community</span>
+        </div>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left: Recipe Library -->
       <div class="glass-panel p-6 flex flex-col gap-4 lg:col-span-1 slide-up">
         <div class="flex items-center gap-3 mb-2">
           <i class="fas fa-book text-primary text-xl"></i>
-          <div class="heading">Recipe Library</div>
+          <div class="heading">Your Recipe Collection</div>
         </div>
         
         <div class="flex gap-3">
           <div class="relative flex-1">
             <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-dark-text-muted"></i>
-            <input id="search" class="input w-full pl-12" placeholder="Search recipes..." />
+            <input id="search" class="input w-full pl-12" placeholder="Search your recipes..." />
           </div>
-          <button id="btnNew" class="btn">
+          <button id="btnNew" class="btn btn-secondary">
             <i class="fas fa-plus"></i>
-            New
+            Add
           </button>
         </div>
         
@@ -1140,8 +1172,19 @@
         const userResponse = await fetch('/api/auth/me');
         const userData = await userResponse.json();
         if (userData.user) {
-          const profileLink = document.getElementById('profileLink');
+          // Update profile link
+          const profileLink = document.getElementById('user-profile-link');
           profileLink.href = `/profile/${userData.user.username}`;
+          
+          // Update welcome message with user's name
+          const welcomeElement = document.getElementById('user-welcome');
+          welcomeElement.textContent = `Hola, ${userData.user.name || userData.user.username}`;
+          
+          // Update avatar if available
+          const avatarElement = document.getElementById('user-avatar');
+          if (userData.user.avatar_url) {
+            avatarElement.innerHTML = `<img src="${userData.user.avatar_url}" alt="${userData.user.name}" class="w-full h-full rounded-full object-cover">`;
+          }
         }
       } catch (error) {
         console.error('Failed to load user data:', error);
@@ -1154,6 +1197,8 @@
 
       // Buttons
       document.getElementById("btnNew").addEventListener("click", onNew);
+      document.getElementById("btnNewHero").addEventListener("click", onNew);
+      document.getElementById("btnImportHero").addEventListener("click", openImport);
       document.getElementById("btnEdit").addEventListener("click", onEdit);
       document.getElementById("btnDelete").addEventListener("click", onDelete);
       document.getElementById("btnSavePlan").addEventListener("click", savePlan);
@@ -1218,6 +1263,165 @@
         userMenu.classList.add('hidden');
       }
     });
+
+    // User Search Functions
+    function openUserSearch() {
+      document.getElementById('user-search-modal').classList.remove('hidden');
+      document.getElementById('user-search-input').focus();
+      searchUsers(''); // Load initial users
+    }
+
+    function closeUserSearch() {
+      document.getElementById('user-search-modal').classList.add('hidden');
+      document.getElementById('user-search-input').value = '';
+      document.getElementById('user-search-results').innerHTML = '';
+    }
+
+    let searchTimeout;
+    async function searchUsers(query) {
+      clearTimeout(searchTimeout);
+      
+      searchTimeout = setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=20`);
+          const data = await response.json();
+          
+          displaySearchResults(data.users || []);
+        } catch (error) {
+          console.error('Search failed:', error);
+          displaySearchResults([]);
+        }
+      }, 300);
+    }
+
+    function displaySearchResults(users) {
+      const container = document.getElementById('user-search-results');
+      
+      if (users.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8">
+            <i class="fas fa-search text-4xl text-dark-text-muted mb-4"></i>
+            <p class="text-dark-text-muted">No cooks found</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = users.map(user => `
+        <div class="flex items-center justify-between p-4 hover:bg-dark-surface-light rounded-lg transition-colors">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-bold">
+              ${user.avatar_url ? 
+                `<img src="${user.avatar_url}" alt="${user.name}" class="w-full h-full rounded-full object-cover">` :
+                (user.name || user.username || 'U').charAt(0).toUpperCase()
+              }
+            </div>
+            <div>
+              <div class="text-white font-medium">${user.name || user.username}</div>
+              <div class="text-dark-text-muted text-sm">@${user.username}</div>
+              <div class="text-dark-text-muted text-xs">
+                ${user.followers_count || 0} followers • ${user.following_count || 0} following
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${user.follows_back ? '<span class="text-xs text-primary bg-primary/20 px-2 py-1 rounded">Follows you</span>' : ''}
+            <button 
+              onclick="toggleFollow('${user.id}', ${user.is_following})" 
+              class="btn ${user.is_following ? 'btn-secondary' : ''} text-sm px-4 py-2"
+              id="follow-btn-${user.id}">
+              <i class="fas fa-${user.is_following ? 'user-minus' : 'user-plus'} mr-1"></i>
+              ${user.is_following ? 'Unfollow' : 'Cook Together'}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function toggleFollow(userId, isCurrentlyFollowing) {
+      const btn = document.getElementById(`follow-btn-${userId}`);
+      const originalText = btn.innerHTML;
+      
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Loading...';
+      btn.disabled = true;
+
+      try {
+        const endpoint = isCurrentlyFollowing ? 'unfollow' : 'follow';
+        const response = await fetch(`/api/users/${userId}/${endpoint}`, {
+          method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          // Update button state
+          const newIsFollowing = !isCurrentlyFollowing;
+          btn.className = `btn ${newIsFollowing ? 'btn-secondary' : ''} text-sm px-4 py-2`;
+          btn.innerHTML = `
+            <i class="fas fa-${newIsFollowing ? 'user-minus' : 'user-plus'} mr-1"></i>
+            ${newIsFollowing ? 'Unfollow' : 'Cook Together'}
+          `;
+          btn.onclick = () => toggleFollow(userId, newIsFollowing);
+          
+          // Show success message
+          if (data.message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+            toast.textContent = data.message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+          }
+        } else {
+          btn.innerHTML = originalText;
+          alert(data.error || 'Action failed');
+        }
+      } catch (error) {
+        console.error('Follow/unfollow failed:', error);
+        btn.innerHTML = originalText;
+        alert('Action failed');
+      } finally {
+        btn.disabled = false;
+      }
+    }
   </script>
+
+  <!-- User Search Modal -->
+  <div id="user-search-modal" class="fixed inset-0 hidden items-center justify-center z-50" style="background: rgba(0,0,0,0.8);">
+    <div class="bg-dark-surface border border-dark-border rounded-xl w-[700px] max-w-[90vw] max-h-[80vh] overflow-hidden animate-slide-up">
+      <!-- Header -->
+      <div class="p-6 border-b border-dark-border">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-search text-primary text-xl"></i>
+            <h3 class="text-xl font-semibold text-white">Find Fellow Cooks</h3>
+          </div>
+          <button onclick="closeUserSearch()" class="text-dark-text-muted hover:text-white transition-colors">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <p class="text-dark-text-muted mt-2">Discover and connect with amazing home cooks around the world</p>
+      </div>
+      
+      <!-- Search Input -->
+      <div class="p-6 border-b border-dark-border">
+        <input 
+          id="user-search-input"
+          type="text" 
+          placeholder="Search by name or username..."
+          class="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-3 text-white placeholder-dark-text-muted focus:outline-none focus:border-primary transition-colors"
+          oninput="searchUsers(this.value)"
+        />
+      </div>
+      
+      <!-- Search Results -->
+      <div id="user-search-results" class="max-h-[400px] overflow-y-auto">
+        <div class="text-center py-8">
+          <i class="fas fa-spinner fa-spin text-2xl text-primary mb-2"></i>
+          <p class="text-dark-text-muted">Loading cooks...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

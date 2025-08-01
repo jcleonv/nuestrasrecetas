@@ -1107,6 +1107,138 @@ def create_post_comment(post_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ================================================
+# User Search and Follow ("Cook") System
+# ================================================
+
+@app.route("/api/users/search", methods=["GET"])
+@require_auth
+def search_users():
+    """Search for users"""
+    try:
+        query = request.args.get('q', '').strip()
+        limit = min(int(request.args.get('limit', 20)), 50)  # Max 50 results
+        
+        if not query:
+            return jsonify({"users": []})
+        
+        # Search users using simple SQL (since RPC might not work)
+        current_user = get_current_user()
+        
+        response = supabase.table('profiles').select('''
+            id, username, name, avatar_url, bio, followers_count, following_count, created_at
+        ''').neq('id', current_user['id']).or_(f'username.ilike.%{query}%,name.ilike.%{query}%').limit(limit).execute()
+        
+        users = response.data or []
+        
+        # Add follow status for each user
+        for user in users:
+            # Check if current user follows this user
+            follow_check = supabase.table('user_follows').select('id').eq('follower_id', current_user['id']).eq('following_id', user['id']).execute()
+            user['is_following'] = bool(follow_check.data)
+            
+            # Check if this user follows current user back
+            follows_back_check = supabase.table('user_follows').select('id').eq('follower_id', user['id']).eq('following_id', current_user['id']).execute()
+            user['follows_back'] = bool(follows_back_check.data)
+        
+        return jsonify({"users": users})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/<user_id>/follow", methods=["POST"])
+@require_auth
+def follow_user(user_id):
+    """Follow a user"""
+    try:
+        current_user = get_current_user()
+        
+        # Prevent self-follows
+        if user_id == current_user['id']:
+            return jsonify({"error": "Cannot follow yourself"}), 400
+        
+        # Check if already following
+        existing = supabase.table('user_follows').select('id').eq('follower_id', current_user['id']).eq('following_id', user_id).execute()
+        if existing.data:
+            return jsonify({"error": "Already following this user"}), 400
+        
+        # Create follow relationship
+        follow_data = {
+            'follower_id': current_user['id'],
+            'following_id': user_id
+        }
+        
+        response = supabase.table('user_follows').insert(follow_data).execute()
+        
+        if response.data:
+            return jsonify({"ok": True, "message": "Now cooking together! 👨‍🍳"})
+        else:
+            return jsonify({"error": "Failed to follow user"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/<user_id>/unfollow", methods=["POST"])
+@require_auth
+def unfollow_user(user_id):
+    """Unfollow a user"""
+    try:
+        current_user = get_current_user()
+        
+        # Find and delete the follow relationship
+        response = supabase.table('user_follows').delete().eq('follower_id', current_user['id']).eq('following_id', user_id).execute()
+        
+        return jsonify({"ok": True, "message": "Unfollowed successfully"})
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/<user_id>/followers", methods=["GET"])
+@require_auth
+def get_user_followers(user_id):
+    """Get list of user's followers"""
+    try:
+        response = supabase.table('user_follows').select('''
+            follower_id,
+            profiles!user_follows_follower_id_fkey(username, name, avatar_url)
+        ''').eq('following_id', user_id).execute()
+        
+        followers = []
+        for follow in response.data or []:
+            if follow.get('profiles'):
+                followers.append({
+                    'id': follow['follower_id'],
+                    **follow['profiles']
+                })
+        
+        return jsonify({"followers": followers})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/<user_id>/following", methods=["GET"])
+@require_auth
+def get_user_following(user_id):
+    """Get list of users that this user follows"""
+    try:
+        response = supabase.table('user_follows').select('''
+            following_id,
+            profiles!user_follows_following_id_fkey(username, name, avatar_url)
+        ''').eq('follower_id', user_id).execute()
+        
+        following = []
+        for follow in response.data or []:
+            if follow.get('profiles'):
+                following.append({
+                    'id': follow['following_id'],
+                    **follow['profiles']
+                })
+        
+        return jsonify({"following": following})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     port = config.PORT
     debug = config.DEBUG

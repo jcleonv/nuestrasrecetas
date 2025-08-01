@@ -115,6 +115,19 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    
+    .kbd {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 11px;
+      font-weight: 500;
+      display: inline-block;
+      min-width: 20px;
+      text-align: center;
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -173,6 +186,12 @@
                 <p class="text-white" id="group-description">Loading description...</p>
               </div>
               <div class="flex items-center gap-4" id="group-actions">
+                <button class="btn" id="add-recipe-btn" onclick="openRecipeCommandPalette()" style="display: none;">
+                  <i class="fas fa-plus"></i>Add Recipe
+                </button>
+                <button class="btn btn-secondary" id="leave-btn" onclick="leaveGroup()" style="display: none;">
+                  <i class="fas fa-sign-out-alt"></i>Leave Group
+                </button>
                 <button class="btn" id="join-btn" onclick="toggleMembership()">
                   <i class="fas fa-user-plus"></i>Join Group
                 </button>
@@ -321,6 +340,19 @@
         e.preventDefault();
         createPost();
       });
+      
+      // Global keyboard shortcuts
+      document.addEventListener('keydown', function(event) {
+        // Only trigger if not typing in an input field
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+          return;
+        }
+        
+        if (event.key === '/' && isMember) {
+          event.preventDefault();
+          openRecipeCommandPalette();
+        }
+      });
     }
 
     function loadGroup() {
@@ -387,17 +419,20 @@
     }
 
     function updateMembershipButton() {
-      const btn = document.getElementById('join-btn');
+      const joinBtn = document.getElementById('join-btn');
+      const leaveBtn = document.getElementById('leave-btn');
+      const addRecipeBtn = document.getElementById('add-recipe-btn');
+      
       if (isMember) {
-        btn.innerHTML = '<i class="fas fa-sign-out-alt"></i>Leave Group';
-        btn.classList.remove('btn');
-        btn.classList.add('btn-secondary');
-        btn.onclick = leaveGroup;
+        // Hide join button, show leave and add recipe buttons
+        joinBtn.style.display = 'none';
+        leaveBtn.style.display = 'inline-flex';
+        addRecipeBtn.style.display = 'inline-flex';
       } else {
-        btn.innerHTML = '<i class="fas fa-user-plus"></i>Join Group';
-        btn.classList.remove('btn-secondary');
-        btn.classList.add('btn');
-        btn.onclick = joinGroup;
+        // Show join button, hide member-only buttons
+        joinBtn.style.display = 'inline-flex';
+        leaveBtn.style.display = 'none';
+        addRecipeBtn.style.display = 'none';
       }
     }
 
@@ -478,6 +513,25 @@
         leaveGroup();
       } else {
         joinGroup();
+      }
+    }
+    
+    async function joinGroup() {
+      try {
+        const response = await fetch(`/api/groups/${currentGroupId}/join`, {
+          method: 'POST'
+        });
+        
+        const data = await response.json();
+        if (data.ok) {
+          // Reload group to update membership status
+          loadGroup();
+        } else {
+          alert(data.error || 'Failed to join group');
+        }
+      } catch (error) {
+        console.error('Failed to join group:', error);
+        alert('Failed to join group');
       }
     }
 
@@ -706,6 +760,210 @@
           window.location.href = '/';
         });
     }
+
+    // Recipe Command Palette Functions
+    let userRecipes = [];
+    
+    async function openRecipeCommandPalette() {
+      // Load user's recipes first
+      await loadUserRecipes();
+      document.getElementById('recipe-command-palette').classList.remove('hidden');
+      document.getElementById('recipe-search-input').focus();
+      filterRecipes('');
+    }
+    
+    function closeRecipeCommandPalette() {
+      document.getElementById('recipe-command-palette').classList.add('hidden');
+      document.getElementById('recipe-search-input').value = '';
+    }
+    
+    async function loadUserRecipes() {
+      try {
+        const response = await fetch('/api/recipes');
+        const data = await response.json();
+        userRecipes = data.recipes || [];
+      } catch (error) {
+        console.error('Failed to load recipes:', error);
+        userRecipes = [];
+      }
+    }
+    
+    function filterRecipes(query) {
+      const resultsContainer = document.getElementById('recipe-search-results');
+      const filteredRecipes = userRecipes.filter(recipe => 
+        recipe.title.toLowerCase().includes(query.toLowerCase()) ||
+        (recipe.category || '').toLowerCase().includes(query.toLowerCase()) ||
+        (recipe.tags || '').toLowerCase().includes(query.toLowerCase())
+      );
+      
+      if (filteredRecipes.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="p-4 text-center text-dark-text-muted">
+            <i class="fas fa-search mb-2 text-2xl"></i>
+            <p>No recipes found${query ? ` for "${query}"` : ''}</p>
+            <p class="text-sm mt-1">Try a different search term</p>
+          </div>
+        `;
+        return;
+      }
+      
+      resultsContainer.innerHTML = filteredRecipes.map((recipe, index) => `
+        <div class="recipe-result p-3 hover:bg-dark-surface-light rounded-lg cursor-pointer transition-colors"
+             onclick="selectRecipe('${recipe.id}', '${recipe.title.replace(/'/g, "\\'")}', ${index})"
+             data-index="${index}">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
+              <i class="fas fa-utensils text-white"></i>
+            </div>
+            <div class="flex-1">
+              <div class="font-medium text-white">${recipe.title}</div>
+              <div class="text-sm text-dark-text-muted">
+                ${recipe.category || 'No category'} • ${recipe.servings || 2} servings
+              </div>
+            </div>
+            <div class="text-primary">
+              <i class="fas fa-plus"></i>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    let selectedRecipeIndex = -1;
+    
+    function handleRecipeSearchKeydown(event) {
+      const results = document.querySelectorAll('.recipe-result');
+      
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        selectedRecipeIndex = Math.min(selectedRecipeIndex + 1, results.length - 1);
+        updateRecipeSelection(results);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        selectedRecipeIndex = Math.max(selectedRecipeIndex - 1, -1);
+        updateRecipeSelection(results);
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        if (selectedRecipeIndex >= 0 && results[selectedRecipeIndex]) {
+          const recipeId = results[selectedRecipeIndex].onclick.toString().match(/'([^']+)'/)[1];
+          const recipeTitle = results[selectedRecipeIndex].onclick.toString().match(/'([^']+)', '([^']+)'/)[2];
+          selectRecipe(recipeId, recipeTitle, selectedRecipeIndex);
+        }
+      } else if (event.key === 'Escape') {
+        closeRecipeCommandPalette();
+      } else {
+        // Reset selection when typing
+        selectedRecipeIndex = -1;
+        const query = event.target.value;
+        filterRecipes(query);
+      }
+    }
+    
+    function updateRecipeSelection(results) {
+      results.forEach((result, index) => {
+        if (index === selectedRecipeIndex) {
+          result.classList.add('bg-dark-surface-light');
+        } else {
+          result.classList.remove('bg-dark-surface-light');
+        }
+      });
+    }
+    
+    async function selectRecipe(recipeId, recipeTitle, index) {
+      try {
+        const response = await fetch(`/api/groups/${currentGroupId}/posts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: `Recipe: ${recipeTitle}`,
+            content: `Shared recipe: ${recipeTitle}`,
+            post_type: 'recipe',
+            recipe_id: parseInt(recipeId)
+          })
+        });
+        
+        const data = await response.json();
+        if (data.ok) {
+          closeRecipeCommandPalette();
+          // Reload group posts to show the new recipe
+          loadGroup();
+        } else {
+          alert(data.error || 'Failed to add recipe to group');
+        }
+      } catch (error) {
+        console.error('Failed to add recipe:', error);
+        alert('Failed to add recipe to group');
+      }
+    }
+    
+    async function leaveGroup() {
+      if (!confirm('Are you sure you want to leave this group?')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/groups/${currentGroupId}/leave`, {
+          method: 'POST'
+        });
+        
+        const data = await response.json();
+        if (data.ok) {
+          window.location.href = '/groups';
+        } else {
+          alert(data.error || 'Failed to leave group');
+        }
+      } catch (error) {
+        console.error('Failed to leave group:', error);
+        alert('Failed to leave group');
+      }
+    }
   </script>
+
+  <!-- Recipe Command Palette Modal -->
+  <div id="recipe-command-palette" class="fixed inset-0 hidden items-center justify-center z-50" style="background: rgba(0,0,0,0.8);">
+    <div class="bg-dark-surface border border-dark-border rounded-xl w-[600px] max-w-[90vw] max-h-[80vh] overflow-hidden animate-slide-up">
+      <!-- Header -->
+      <div class="p-4 border-b border-dark-border">
+        <div class="flex items-center gap-3">
+          <i class="fas fa-search text-primary"></i>
+          <h3 class="text-lg font-semibold text-white">Add Recipe to Group</h3>
+          <span class="text-xs text-dark-text-muted bg-dark-surface-light px-2 py-1 rounded">Press / to open</span>
+        </div>
+      </div>
+      
+      <!-- Search Input -->
+      <div class="p-4 border-b border-dark-border">
+        <input 
+          id="recipe-search-input"
+          type="text" 
+          placeholder="Search your recipes..."
+          class="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-3 text-white placeholder-dark-text-muted focus:outline-none focus:border-primary transition-colors"
+          onkeydown="handleRecipeSearchKeydown(event)"
+        />
+      </div>
+      
+      <!-- Search Results -->
+      <div id="recipe-search-results" class="max-h-[400px] overflow-y-auto p-2">
+        <div class="p-4 text-center text-dark-text-muted">
+          <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+          <p>Loading your recipes...</p>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <div class="p-4 border-t border-dark-border flex justify-between items-center text-xs text-dark-text-muted">
+        <div class="flex items-center gap-4">
+          <span><kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> Navigate</span>
+          <span><kbd class="kbd">Enter</kbd> Select</span>
+        </div>
+        <button onclick="closeRecipeCommandPalette()" class="text-dark-text-muted hover:text-white transition-colors">
+          <kbd class="kbd">Esc</kbd> Close
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html> 
