@@ -511,13 +511,13 @@
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold">
                 ${post.user_avatar ? 
-                  `<img src="${post.user_avatar}" alt="${post.user_name}" class="w-full h-full rounded-full object-cover">` :
-                  post.user_name.charAt(0).toUpperCase()
+                  `<img src="${post.user_avatar}" alt="${post.user_name || 'User'}" class="w-full h-full rounded-full object-cover">` :
+                  (post.user_name || 'U').charAt(0).toUpperCase()
                 }
               </div>
               <div>
-                <div class="text-white font-medium">${post.user_name}</div>
-                <div class="text-dark-text-muted text-sm">@${post.username} • ${formatDate(post.created_at)}</div>
+                <div class="text-white font-medium">${post.user_name || 'Unknown User'}</div>
+                <div class="text-dark-text-muted text-sm">@${post.username || 'unknown'} • ${formatDate(post.created_at)}</div>
               </div>
             </div>
             <span class="px-2 py-1 rounded-full text-xs ${getPostTypeColor(post.post_type)}">
@@ -578,13 +578,13 @@
           <div class="flex items-center gap-3">
             <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white text-sm font-bold">
               ${member.profiles?.avatar_url ? 
-                `<img src="${member.profiles.avatar_url}" alt="${member.profiles.name}" class="w-full h-full rounded-full object-cover">` :
-                member.profiles?.name.charAt(0).toUpperCase()
+                `<img src="${member.profiles.avatar_url}" alt="${member.profiles?.name || 'User'}" class="w-full h-full rounded-full object-cover">` :
+                (member.profiles?.name || 'U').charAt(0).toUpperCase()
               }
             </div>
             <div>
-              <div class="text-white font-medium text-sm">${member.profiles?.name}</div>
-              <div class="text-dark-text-muted text-xs">@${member.profiles?.username}</div>
+              <div class="text-white font-medium text-sm">${member.profiles?.name || 'Unknown'}</div>
+              <div class="text-dark-text-muted text-xs">@${member.profiles?.username || 'unknown'}</div>
             </div>
           </div>
           <span class="px-2 py-1 rounded-full text-xs ${getRoleColor(member.role)}">

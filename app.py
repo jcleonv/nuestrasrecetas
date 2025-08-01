@@ -829,31 +829,49 @@ def list_groups():
         # Check if groups table exists
         try:
             if supabase:
-                # Query groups with owner information
-                response = supabase.table('groups').select('''
-                    *,
-                    profiles!groups_owner_id_fkey(username, name, avatar_url)
-                ''').eq('is_public', True).limit(20).execute()
-                
-                groups = []
-                for group in response.data or []:
-                    # Add owner information
-                    owner = group.get('profiles', {})
-                    group_data = {
-                        **group,
-                        'owner_name': owner.get('name', 'Unknown'),
-                        'owner_username': owner.get('username', 'unknown'),
-                        'owner_avatar': owner.get('avatar_url', ''),
-                        'post_count': 0,  # TODO: Add actual post count
-                        'is_member': False  # TODO: Check membership
-                    }
+                # Try using the group_details view first
+                try:
+                    response = supabase.table('group_details').select('*').eq('is_public', True).limit(20).execute()
+                    groups = []
+                    for group in response.data or []:
+                        group_data = {
+                            **group,
+                            'is_member': False  # Will be checked below
+                        }
+                        
+                        # Check if current user is a member
+                        if current_user:
+                            member_check = supabase.table('group_members').select('*').eq('group_id', group['id']).eq('user_id', current_user['id']).execute()
+                            group_data['is_member'] = len(member_check.data or []) > 0
+                        
+                        groups.append(group_data)
+                except Exception as view_error:
+                    print(f"group_details view not available, falling back to basic query: {view_error}")
+                    # Fallback to basic groups table query
+                    response = supabase.table('groups').select('''
+                        *,
+                        profiles!groups_owner_id_fkey(username, name, avatar_url)
+                    ''').eq('is_public', True).limit(20).execute()
                     
-                    # Check if current user is a member
-                    if current_user:
-                        member_check = supabase.table('group_members').select('*').eq('group_id', group['id']).eq('user_id', current_user['id']).execute()
-                        group_data['is_member'] = len(member_check.data or []) > 0
-                    
-                    groups.append(group_data)
+                    groups = []
+                    for group in response.data or []:
+                        # Add owner information
+                        owner = group.get('profiles', {}) or {}
+                        group_data = {
+                            **group,
+                            'owner_name': owner.get('name', 'Unknown'),
+                            'owner_username': owner.get('username', 'unknown'),
+                            'owner_avatar': owner.get('avatar_url', ''),
+                            'post_count': 0,  # Default post count
+                            'is_member': False
+                        }
+                        
+                        # Check if current user is a member
+                        if current_user:
+                            member_check = supabase.table('group_members').select('*').eq('group_id', group['id']).eq('user_id', current_user['id']).execute()
+                            group_data['is_member'] = len(member_check.data or []) > 0
+                        
+                        groups.append(group_data)
             else:
                 groups = []
         except Exception as e:
@@ -910,20 +928,58 @@ def create_group():
 def get_group(group_id):
     """Get group details"""
     try:
-        # Get group details
-        response = supabase.table('groups').select('*').eq('id', group_id).single().execute()
-        if not response.data:
-            return jsonify({"error": "Group not found"}), 404
-        
-        group = response.data
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+            
+        # Get group details (try with owner info first)
+        try:
+            response = supabase.table('groups').select('''
+                *,
+                profiles!groups_owner_id_fkey(username, name, avatar_url)
+            ''').eq('id', group_id).single().execute()
+            
+            if not response.data:
+                return jsonify({"error": "Group not found"}), 404
+            
+            group = response.data
+            # Add owner information
+            owner = group.get('profiles', {}) or {}
+            group.update({
+                'owner_name': owner.get('name', 'Unknown'),
+                'owner_username': owner.get('username', 'unknown'),
+                'owner_avatar': owner.get('avatar_url', '')
+            })
+        except Exception as e:
+            print(f"Error getting group with owner info: {e}")
+            # Fallback to basic group query
+            response = supabase.table('groups').select('*').eq('id', group_id).single().execute()
+            if not response.data:
+                return jsonify({"error": "Group not found"}), 404
+            group = response.data
         
         # Get group members
-        members_response = supabase.table('group_members').select('*, profiles(username, name, avatar_url)').eq('group_id', group_id).execute()
-        members = members_response.data or []
+        try:
+            members_response = supabase.table('group_members').select('*, profiles(username, name, avatar_url)').eq('group_id', group_id).execute()
+            members = members_response.data or []
+        except Exception as e:
+            print(f"Error getting group members: {e}")
+            members = []
         
         # Get recent posts
-        posts_response = supabase.table('group_posts').select('*').eq('group_id', group_id).order('created_at', desc=True).limit(10).execute()
-        posts = posts_response.data or []
+        try:
+            posts_response = supabase.table('group_posts').select('*, profiles!group_posts_user_id_fkey(username, name, avatar_url)').eq('group_id', group_id).order('created_at', desc=True).limit(10).execute()
+            posts = []
+            for post in posts_response.data or []:
+                user_info = post.get('profiles', {}) or {}
+                post.update({
+                    'user_name': user_info.get('name', 'Unknown User'),
+                    'username': user_info.get('username', 'unknown'),
+                    'user_avatar': user_info.get('avatar_url', '')
+                })
+                posts.append(post)
+        except Exception as e:
+            print(f"Error getting group posts: {e}")
+            posts = []
         
         return jsonify({
             "group": group,
@@ -931,6 +987,7 @@ def get_group(group_id):
             "posts": posts
         })
     except Exception as e:
+        print(f"Error in get_group: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/groups/<group_id>/join", methods=["POST"])
