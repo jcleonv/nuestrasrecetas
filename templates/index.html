@@ -766,6 +766,10 @@
             <i class="fas fa-edit"></i>
             Edit
           </button>
+          <button id="btnForkSelected" class="btn btn-secondary flex-1">
+            <i class="fas fa-code-branch"></i>
+            Fork
+          </button>
           <button id="btnDelete" class="btn btn-danger flex-1">
             <i class="fas fa-trash"></i>
             Delete
@@ -1308,7 +1312,10 @@
       d.appendChild(left);
       
       const badge = el("div","badge flex items-center gap-1 flex-shrink-0");
-      const icon = document.createElement('i');\n      icon.className = 'fas fa-users text-xs';\n      badge.appendChild(icon);\n      badge.appendChild(document.createTextNode(' ' + (r.servings || 2)));
+      const servingsIcon = document.createElement('i');
+      servingsIcon.className = 'fas fa-users text-xs';
+      badge.appendChild(servingsIcon);
+      badge.appendChild(document.createTextNode(' ' + (r.servings || 2)));
       d.appendChild(badge);
       
       d.addEventListener("click", () => {
@@ -1347,7 +1354,10 @@
         // Day header
         const head = el("div","glass-panel p-4 flex items-center justify-between");
         const dayTitle = el("div","font-bold text-lg flex items-center gap-2");
-        const dayIcon = document.createElement('i');\n        dayIcon.className = 'fas fa-calendar-day text-primary';\n        dayTitle.appendChild(dayIcon);\n        dayTitle.appendChild(document.createTextNode(' ' + day));
+        const dayIcon = document.createElement('i');
+        dayIcon.className = 'fas fa-calendar-day text-primary';
+        dayTitle.appendChild(dayIcon);
+        dayTitle.appendChild(document.createTextNode(' ' + day));
         head.appendChild(dayTitle);
         
         const btnClr = el("button","btn btn-secondary text-sm px-3 py-1");

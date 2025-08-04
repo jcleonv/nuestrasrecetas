@@ -11,8 +11,8 @@ BEGIN
     IF NOT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'recipe_forks') THEN
         CREATE TABLE public.recipe_forks (
             id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-            original_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
-            forked_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
+            original_recipe_id INTEGER NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
+            forked_recipe_id INTEGER NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
             forked_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             
@@ -35,11 +35,11 @@ BEGIN
         
         -- Ensure other required columns exist
         IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'original_recipe_id') THEN
-            ALTER TABLE public.recipe_forks ADD COLUMN original_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE;
+            ALTER TABLE public.recipe_forks ADD COLUMN original_recipe_id INTEGER NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE;
         END IF;
         
         IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'forked_recipe_id') THEN
-            ALTER TABLE public.recipe_forks ADD COLUMN forked_recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE;
+            ALTER TABLE public.recipe_forks ADD COLUMN forked_recipe_id INTEGER NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE;
         END IF;
         
         IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'recipe_forks' AND column_name = 'created_at') THEN
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS public.user_posts (
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     post_type VARCHAR(50) DEFAULT 'general' CHECK (post_type IN ('general', 'recipe_share', 'recipe_fork', 'meal_plan', 'achievement')),
-    recipe_id UUID REFERENCES public.recipes(id) ON DELETE SET NULL,
+    recipe_id INTEGER REFERENCES public.recipes(id) ON DELETE SET NULL,
     group_id UUID REFERENCES public.groups(id) ON DELETE CASCADE,
     metadata JSONB DEFAULT '{}',
     is_public BOOLEAN DEFAULT true,

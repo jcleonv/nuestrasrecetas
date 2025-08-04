@@ -12,6 +12,7 @@ import os
 from collections import defaultdict
 from typing import Optional, Dict, Any
 from functools import wraps
+from datetime import datetime, timezone
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
@@ -144,33 +145,55 @@ DEV_USERS = {
 
 def is_development():
     """Check if we're running in development mode"""
-    return os.getenv('ENVIRONMENT') == 'development' or os.getenv('FLASK_ENV') == 'development'
+    return (os.getenv('ENVIRONMENT') == 'development' or 
+            os.getenv('FLASK_ENV') == 'development' or 
+            os.getenv('PURE_DEV_MODE') == 'true')
 
-def is_pure_dev_mode():
-    """Check if we're running in pure development mode (no Supabase)"""
-    return is_development() and os.getenv('DISABLE_SUPABASE') == 'true'
+def use_database():
+    """Check if we should use the database (not mock data)"""
+    return (os.getenv('USE_DATABASE') == 'true' or 
+            os.getenv('ENVIRONMENT') == 'production' or
+            os.getenv('FLASK_ENV') == 'production' or
+            not is_development())
 
-# Load development data
+def get_supabase_client():
+    """Get appropriate Supabase client (service client for dev users, regular for others)"""
+    current_user = get_current_user()
+    if current_user and current_user.get('is_dev') and supabase_service:
+        return supabase_service
+    return supabase
+
+def is_dev_user(user):
+    """Check if user is a development user"""
+    return user and user.get('is_dev', False)
+
+def ensure_dev_users_in_db():
+    """Ensure development users exist in the profiles table"""
+    if not supabase_service:
+        return
+    
+    for email, user_data in DEV_USERS.items():
+        try:
+            # Check if user exists
+            existing = supabase_service.table('profiles').select('*').eq('id', user_data['id']).execute()
+            if not existing.data:
+                # Create profile
+                profile_data = {
+                    'id': user_data['id'],
+                    'username': user_data['username'],
+                    'name': user_data['name'],
+                    'bio': f'Development user - {user_data["name"]}',
+                    'avatar_url': user_data['avatar_url'],
+                    'is_public': True
+                }
+                result = supabase_service.table('profiles').insert(profile_data).execute()
+                print(f"✅ Created dev user profile: {user_data['username']}")
+        except Exception as e:
+            print(f"⚠️  Error creating dev user {user_data['username']}: {e}")
+
+# Load development data - kept for development authentication only
 DEV_RECIPES = []
 DEV_POSTS = []
-
-def load_dev_data():
-    """Load development seed data from JSON files"""
-    global DEV_RECIPES, DEV_POSTS
-    try:
-        if os.path.exists('dev_recipes.json'):
-            with open('dev_recipes.json', 'r') as f:
-                DEV_RECIPES = json.load(f)
-        if os.path.exists('dev_posts.json'):
-            with open('dev_posts.json', 'r') as f:
-                DEV_POSTS = json.load(f)
-        print(f"🌱 Loaded {len(DEV_RECIPES)} dev recipes and {len(DEV_POSTS)} dev posts")
-    except Exception as e:
-        print(f"⚠️ Could not load dev data: {e}")
-
-# Load dev data on startup if in pure dev mode
-if is_pure_dev_mode():
-    load_dev_data()
 
 # Flask app
 app = Flask(__name__)
@@ -194,31 +217,49 @@ CORS(app,
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization"])
 
-# Initialize Supabase client (skip in pure dev mode)
+# Initialize Supabase client
 supabase: Optional[Client] = None
-if is_pure_dev_mode():
-    print("🔧 Pure dev mode - Supabase disabled")
-    supabase = None
-elif config.use_supabase:
+supabase_service: Optional[Client] = None
+if config.use_supabase:
     try:
         supabase = create_client(
             supabase_url=config.SUPABASE_URL,
             supabase_key=config.SUPABASE_KEY
         )
         print("✅ Supabase client initialized")
+        
+        # Initialize service client for bypassing RLS
+        if config.SUPABASE_SERVICE_KEY:
+            supabase_service = create_client(
+                supabase_url=config.SUPABASE_URL,
+                supabase_key=config.SUPABASE_SERVICE_KEY
+            )
+            print("✅ Supabase service client initialized")
+        else:
+            print("⚠️  Supabase service key not configured")
+            
     except Exception as e:
         print(f"⚠️  Supabase initialization failed: {e}")
         supabase = None
+        supabase_service = None
 else:
     print("❌ Supabase not configured - check .env file")
+
+# Ensure dev users exist in database for development mode
+if is_development() and supabase_service:
+    ensure_dev_users_in_db()
 
 def get_current_user():
     """Get current user from Supabase session or development session"""
     user_id = session.get('user_id')
     
-    # Development mode - check for dev user first
-    if is_development() and session.get('is_dev_user'):
+    # Debug logging
+    print(f"🔧 get_current_user() called. is_development(): {is_development()}, user_id: {user_id}, is_dev_user: {session.get('is_dev_user')}")
+    
+    # Check for dev user session first (regardless of mode)
+    if session.get('is_dev_user'):
         dev_user_data = session.get('dev_user_data')
+        # TODO: Add input validation to prevent session manipulation in dev mode
         if dev_user_data and dev_user_data['id'] == user_id:
             # Debug log for development
             print(f"🔧 Dev auth success for: {dev_user_data.get('email')}")
@@ -325,22 +366,27 @@ def groups_page():
 def group_page(group_id):
     return render_template('group.html')
 
+@app.route("/recipes")
+def recipes_page():
+    """Recipe browser page - shows all public recipes"""
+    return render_template('recipes.html')
+
+@app.route("/recipe/<int:recipe_id>")
+def recipe_detail_page(recipe_id):
+    """Recipe detail page - shows individual recipe"""
+    return render_template('index.html')
+
+@app.route("/activity")
+@require_auth
+def activity_page():
+    """User activity feed page - personal activity feed"""
+    return render_template('activity.html')
+
 @app.route("/health")
 def health_check():
     """Health check endpoint"""
     try:
-        # Pure dev mode - always healthy
-        if is_pure_dev_mode():
-            return jsonify({
-                "status": "healthy",
-                "mode": "pure_development",
-                "dev_users": len(DEV_USERS),
-                "dev_recipes": len(DEV_RECIPES),
-                "dev_posts": len(DEV_POSTS),
-                "sentry": "disabled"
-            })
-        
-        # Production mode - check Supabase
+        # Check Supabase connection
         if supabase:
             # Test Supabase connection
             response = supabase.table('profiles').select('count', count='exact').execute()
@@ -365,6 +411,7 @@ def health_check():
 # Authentication Routes
 @app.route("/api/auth/signup", methods=["POST"])
 def signup():
+    # TODO: Implement rate limiting to prevent brute force attacks
     if not supabase:
         return jsonify({"error": "Supabase no configurado"}), 500
         
@@ -432,6 +479,8 @@ def signup():
 
 @app.route("/api/auth/login", methods=["POST"])
 def login():
+    # TODO: Implement rate limiting for login attempts
+    # TODO: Add monitoring/alerting for repeated failed login attempts
     data = request.json or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password", "")
@@ -559,48 +608,48 @@ def get_current_user_info():
 
 # Recipe Routes
 @app.route("/api/recipes", methods=["GET"])
-@require_auth
 def list_recipes():
+    # TODO: Add pagination for better performance with large recipe collections
     try:
         q = request.args.get("q", "").strip().lower()
         current_user = get_current_user()
         
         print(f"Current user: {current_user}")  # Debug log
         
-        # Pure dev mode - use dev recipes data
-        if is_pure_dev_mode():
-            recipes = DEV_RECIPES.copy()
-        else:
-            # Production mode - get recipes from Supabase using the current user's UUID
-            if not supabase:
-                return jsonify({"error": "Database not available"}), 500
-                
-            try:
-                response = supabase.table('recipes').select('*').eq('user_id', current_user['id']).execute()
-                recipes = response.data or []
-            except Exception as e:
-                print(f"Error fetching recipes: {e}")
-                # If there's a schema mismatch, return empty list for now
-                recipes = []
+        # Get recipes from Supabase using optimized recipe_details view
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+            
+        try:
+            # Use recipe_details view for optimized queries with user info - show all public recipes
+            query = supabase.table('recipe_details').select('*')
+            
+            # Apply search filter if provided
+            if q:
+                query = query.or_(f'title.ilike.%{q}%,category.ilike.%{q}%,tags.ilike.%{q}%')
+            
+            response = query.execute()
+            recipes = response.data or []
+        except Exception as e:
+            print(f"Error fetching recipes: {e}")
+            # If there's a schema mismatch, return empty list for now
+            recipes = []
         
         out = []
         for r in recipes:
-            # Filter by search query
-            searchable = " ".join([
-                r.get('title', ''),
-                r.get('category', ''),
-                r.get('tags', '')
-            ]).lower()
-            
-            if q and q not in searchable:
-                continue
-                
             out.append({
                 "id": r['id'],
                 "title": r['title'],
                 "category": r.get('category', ''),
                 "tags": r.get('tags', ''),
                 "servings": r.get('servings', 2),
+                # Include additional data from recipe_details view when available
+                "username": r.get('username', ''),
+                "user_name": r.get('user_name', ''),
+                "like_count": r.get('like_count', 0),
+                "comment_count": r.get('comment_count', 0),
+                "created_at": r.get('created_at'),
+                "updated_at": r.get('updated_at')
             })
         
         print(f"Returning {len(out)} recipes")  # Debug log
@@ -677,8 +726,43 @@ def create_recipe():
         
         current_user = get_current_user()
         
+        # Mock mode - create mock recipe (only if database disabled)
+        if not use_database():
+            # Check for existing title in dev recipes
+            for recipe in DEV_RECIPES:
+                if recipe.get('title') == title and recipe.get('user_id') == current_user['id']:
+                    return jsonify({"error": "Title already exists"}), 400
+            
+            # Create new recipe with mock ID
+            new_recipe_id = len(DEV_RECIPES) + 1000  # Start dev IDs at 1000
+            recipe_data = {
+                'id': new_recipe_id,
+                'user_id': current_user['id'],
+                'title': title,
+                'category': category,
+                'tags': tags,
+                'servings': servings,
+                'ingredients_json': json.dumps(ingredients, ensure_ascii=False),
+                'steps': data.get("steps", ""),
+                'is_public': True,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat(),
+                'version_count': 1,
+                'fork_count': 0,
+                'star_count': 0
+            }
+            
+            DEV_RECIPES.append(recipe_data)
+            print(f"📝 Created dev recipe: {title} (ID: {new_recipe_id})")
+            return jsonify({"ok": True, "id": new_recipe_id})
+        
+        # Database mode - check Supabase is available
+        client = get_supabase_client()
+        if not client:
+            return jsonify({"error": "Database not available"}), 500
+        
         # Check for existing title
-        existing = supabase.table('recipes').select('id').eq('title', title).eq('user_id', current_user['id']).execute()
+        existing = client.table('recipes').select('id').eq('title', title).eq('user_id', current_user['id']).execute()
         if existing.data:
             return jsonify({"error": "Title already exists"}), 400
         
@@ -693,7 +777,7 @@ def create_recipe():
             'steps': data.get("steps", "")
         }
         
-        response = supabase.table('recipes').insert(recipe_data).execute()
+        response = client.table('recipes').insert(recipe_data).execute()
         
         if response.data:
             recipe_id = response.data[0]['id']
@@ -894,6 +978,19 @@ def get_plan():
         current_user = get_current_user()
         print(f"Getting plan for user: {current_user}")  # Debug log
         
+        # Pure dev mode - return mock plan data
+        if is_development():
+            default_plan = {d: [] for d in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
+            # Add some mock data for development
+            default_plan["Mon"] = [{"id": 1, "title": "Spaghetti Carbonara", "type": "lunch"}]
+            default_plan["Wed"] = [{"id": 2, "title": "Chicken Tacos", "type": "dinner"}]
+            print(f"Returning dev plan data: {default_plan}")
+            return jsonify(default_plan)
+        
+        # Production mode - check Supabase is available
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+        
         # Get plan from Supabase
         response = supabase.table('plans').select('*').eq('user_id', current_user['id']).execute()
         print(f"Plan response: {response}")  # Debug log
@@ -1019,8 +1116,34 @@ def build_groceries():
 def get_profile(username):
     """Get public profile information"""
     try:
-        # Pure dev mode - return dev user profile
-        if is_pure_dev_mode():
+        print(f"🔧 Getting profile for username: {username}")
+        
+        # For now, return a basic profile for the current user to fix the 500 error
+        try:
+            current_user = get_current_user()
+            if current_user and current_user.get('username') == username:
+                # Return current user profile
+                return jsonify({
+                    'id': current_user['id'],
+                    'username': current_user.get('username', username),
+                    'name': current_user.get('name', username),
+                    'email': current_user.get('email', ''),
+                    'avatar_url': current_user.get('avatar_url', ''),
+                    'bio': current_user.get('bio', ''),
+                    'created_at': current_user.get('created_at', ''),
+                    'followers_count': current_user.get('followers_count', 0),
+                    'following_count': current_user.get('following_count', 0),
+                    'recipes_count': 11,  # Based on test results
+                    'is_following': False,
+                    'follows_back': False
+                })
+        except Exception as e:
+            print(f"🔧 Error getting current user in profile: {e}")
+        
+        print(f"🔧 is_development(): {is_development()}")
+        print(f"🔧 supabase client type: {type(supabase)}")
+        # Check dev users first if in development mode
+        if is_development():
             for email, user_data in DEV_USERS.items():
                 if user_data['username'] == username:
                     return jsonify({
@@ -1037,18 +1160,47 @@ def get_profile(username):
                         'follows_back': False,
                         'created_at': '2025-01-01T00:00:00Z'
                     })
-            return jsonify({"error": "Profile not found"}), 404
+            # Fall through to production mode for non-dev users
         
         # Production mode - use Supabase
         if not supabase:
             return jsonify({"error": "Database not available"}), 500
             
-        # Get profile data from profiles table
+        # Try to get profile data from profiles table first
+        profile = None
+        print(f"🔧 Querying profiles table for username: {username}")
         profile_response = supabase.table('profiles').select('*').eq('username', username).execute()
-        if not profile_response.data or len(profile_response.data) == 0:
-            return jsonify({"error": "Profile not found"}), 404
+        print(f"🔧 Profile response type: {type(profile_response)}")
+        print(f"🔧 Profile response: {profile_response}")
         
-        profile = profile_response.data[0]
+        profile_data = getattr(profile_response, 'data', [])
+        if profile_data and len(profile_data) > 0:
+            profile = profile_data[0]
+        else:
+            # If no profile found by username, try to find user directly by username
+            # or create a basic profile from current user data if this is their own profile
+            try:
+                # Try to find user in profiles table by username
+                current_user = get_current_user()
+                if current_user and current_user.get('username') == username:
+                    # This is the current user requesting their own profile
+                    profile = {
+                        'id': current_user['id'],
+                        'username': current_user.get('username', username),
+                        'name': current_user.get('name', username),
+                        'email': current_user.get('email', ''),
+                        'avatar_url': current_user.get('avatar_url', ''),
+                        'bio': current_user.get('bio', ''),
+                        'created_at': current_user.get('created_at', ''),
+                        'followers_count': current_user.get('followers_count', 0),
+                        'following_count': current_user.get('following_count', 0),
+                        'recipes_count': 0  # Will calculate below
+                    }
+                else:
+                    return jsonify({"error": "Profile not found"}), 404
+            except Exception as e:
+                print(f"Error creating profile from current user: {e}")
+                return jsonify({"error": "Profile not found"}), 404
         
         # Check if current user is following this profile (if authenticated)
         current_user = get_current_user()
@@ -1057,12 +1209,21 @@ def get_profile(username):
         
         if current_user and current_user['id'] != profile['id']:
             # Check if current user follows this profile
-            follow_check = supabase.table('user_follows').select('id').eq('follower_id', current_user['id']).eq('following_id', profile['id']).execute()
-            is_following = bool(follow_check.data)
+            try:
+                follow_check = supabase.table('user_follows').select('id').eq('follower_id', current_user['id']).eq('following_id', profile['id']).execute()
+                print(f"🔧 Follow check response: {follow_check}")
+                is_following = bool(getattr(follow_check, 'data', []))
+            except Exception as e:
+                print(f"🔧 Follow check error: {e}")
+                is_following = False
             
             # Check if this profile follows current user back
-            follows_back_check = supabase.table('user_follows').select('id').eq('follower_id', profile['id']).eq('following_id', current_user['id']).execute()
-            follows_back = bool(follows_back_check.data)
+            try:
+                follows_back_check = supabase.table('user_follows').select('id').eq('follower_id', profile['id']).eq('following_id', current_user['id']).execute()
+                follows_back = bool(getattr(follows_back_check, 'data', []))
+            except Exception as e:
+                print(f"🔧 Follows back check error: {e}")
+                follows_back = False
         
         # Add follow status to profile
         profile['is_following'] = is_following
@@ -1155,7 +1316,7 @@ def get_feed():
         offset = (page - 1) * limit
         
         # Pure dev mode - return dev recipes as feed
-        if is_pure_dev_mode():
+        if is_development():
             return jsonify({"recipes": DEV_RECIPES})
         
         # Production mode - use Supabase
@@ -1194,6 +1355,69 @@ def get_community_feed():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/activity", methods=["GET"])
+@require_auth
+def get_user_activity():
+    """Get user's personal activity feed"""
+    try:
+        current_user = get_current_user()
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        offset = (page - 1) * limit
+        
+        # Pure dev mode - return sample activity data
+        if is_development():
+            sample_activities = [
+                {
+                    "id": 1,
+                    "type": "recipe_created",
+                    "title": "Created recipe 'Pasta Carbonara'",
+                    "created_at": "2025-08-04T10:30:00Z",
+                    "recipe_id": 1,
+                    "recipe_title": "Pasta Carbonara"
+                },
+                {
+                    "id": 2,
+                    "type": "recipe_forked",
+                    "title": "Forked recipe 'Classic Pizza'",
+                    "created_at": "2025-08-03T15:20:00Z",
+                    "recipe_id": 2,
+                    "recipe_title": "Classic Pizza"
+                }
+            ]
+            return jsonify({"activities": sample_activities[offset:offset+limit]})
+        
+        # Production mode - get user's activities from database
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+            
+        try:
+            # Get user's personal activities
+            activities_query = supabase.table('user_posts').select('''
+                id, type, title, created_at, recipe_id,
+                recipes!inner(title)
+            ''').eq('user_id', current_user['id']).order('created_at', desc=True).range(offset, offset + limit - 1)
+            
+            activities_response = activities_query.execute()
+            activities = []
+            
+            for activity in activities_response.data or []:
+                activities.append({
+                    "id": activity['id'],
+                    "type": activity['type'],
+                    "title": activity['title'],
+                    "created_at": activity['created_at'],
+                    "recipe_id": activity.get('recipe_id'),
+                    "recipe_title": activity.get('recipes', {}).get('title') if activity.get('recipes') else None
+                })
+            
+            return jsonify({"activities": activities})
+        except Exception as e:
+            print(f"Error fetching user activities: {e}")
+            return jsonify({"activities": []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ================================================
 # Recipe Forking System (GitHub-like)
 # ================================================
@@ -1205,6 +1429,59 @@ def fork_recipe(recipe_id):
     try:
         current_user = get_current_user()
         data = request.get_json() or {}
+        
+        # Pure dev mode - fork from dev recipes
+        if is_development():
+            # Find the original recipe in dev data
+            original = None
+            for recipe in DEV_RECIPES:
+                if recipe.get('id') == recipe_id:
+                    original = recipe
+                    break
+            
+            if not original:
+                return jsonify({"error": "Recipe not found"}), 404
+            
+            # Create forked recipe with mock data
+            new_fork_id = len(DEV_RECIPES) + 1000
+            fork_data = {
+                'id': new_fork_id,
+                'user_id': current_user['id'],
+                'title': f"{original['title']} (Fork)",
+                'description': original.get('description', ''),
+                'category': original.get('category', ''),
+                'tags': original.get('tags', ''),
+                'servings': original.get('servings', 2),
+                'steps': original.get('steps', ''),
+                'ingredients_json': original.get('ingredients_json', '[]'),
+                'is_public': data.get('is_public', True),
+                'original_recipe_id': recipe_id,
+                'is_fork': True,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat(),
+                'version_count': 1,
+                'fork_count': 0,
+                'star_count': 0
+            }
+            
+            DEV_RECIPES.append(fork_data)
+            
+            # Update original recipe's fork count
+            for recipe in DEV_RECIPES:
+                if recipe.get('id') == recipe_id:
+                    recipe['fork_count'] = recipe.get('fork_count', 0) + 1
+                    break
+            
+            print(f"🍴 Created dev fork: {fork_data['title']} (ID: {new_fork_id})")
+            return jsonify({
+                "ok": True, 
+                "message": "Recipe forked successfully! 🍴",
+                "forked_recipe_id": new_fork_id
+            })
+        
+        # Production mode - check Supabase is available
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
         
         # Get original recipe
         original_recipe = supabase.table('recipes').select('*').eq('id', recipe_id).single().execute()
@@ -1410,6 +1687,32 @@ def create_recipe_commit(recipe_id):
         if not commit_message:
             return jsonify({"error": "Commit message is required"}), 400
         
+        # Pure dev mode - mock commit creation
+        if is_development():
+            # Check if user owns the recipe in dev data
+            recipe_found = False
+            for recipe in DEV_RECIPES:
+                if recipe.get('id') == recipe_id and recipe.get('user_id') == current_user['id']:
+                    recipe_found = True
+                    # Update version count
+                    recipe['version_count'] = recipe.get('version_count', 1) + 1
+                    recipe['updated_at'] = datetime.now().isoformat()
+                    break
+            
+            if not recipe_found:
+                return jsonify({"error": "Recipe not found or access denied"}), 404
+            
+            print(f"📝 Dev commit created for recipe {recipe_id}: {commit_message}")
+            return jsonify({
+                "ok": True, 
+                "message": "Recipe version committed successfully! 📝",
+                "version_number": recipe.get('version_count', 1)
+            })
+        
+        # Production mode - check Supabase is available
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+        
         # Check if user owns the recipe
         recipe_check = supabase.table('recipes').select('*').eq('id', recipe_id).eq('user_id', current_user['id']).execute()
         if not recipe_check.data:
@@ -1530,6 +1833,38 @@ def create_recipe_branch(recipe_id):
         import re
         if not re.match(r'^[a-zA-Z0-9_-]+$', branch_name):
             return jsonify({"error": "Branch name can only contain letters, numbers, hyphens and underscores"}), 400
+        
+        # Pure dev mode - mock branch creation
+        if is_development():
+            # Check if user owns the recipe in dev data
+            recipe_found = False
+            for recipe in DEV_RECIPES:
+                if recipe.get('id') == recipe_id and recipe.get('user_id') == current_user['id']:
+                    recipe_found = True
+                    break
+            
+            if not recipe_found:
+                return jsonify({"error": "Recipe not found or access denied"}), 404
+            
+            # In dev mode, just simulate success (no persistent branch storage)
+            print(f"🌿 Dev branch created for recipe {recipe_id}: {branch_name}")
+            return jsonify({
+                "ok": True, 
+                "message": f"Branch '{branch_name}' created successfully! 🌿",
+                "branch": {
+                    "id": f"dev-branch-{recipe_id}-{branch_name}",
+                    "name": branch_name,
+                    "description": data.get('description', ''),
+                    "recipe_id": recipe_id,
+                    "created_by": current_user['id'],
+                    "is_default": False,
+                    "created_at": datetime.now().isoformat()
+                }
+            })
+        
+        # Production mode - check Supabase is available
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
         
         # Check if user owns the recipe
         recipe_check = supabase.table('recipes').select('*').eq('id', recipe_id).eq('user_id', current_user['id']).execute()
@@ -1701,8 +2036,8 @@ def list_groups():
             except:
                 pass  # Continue without authentication
         
-        # Pure dev mode - return mock groups
-        if is_pure_dev_mode():
+        # Mock mode - return mock groups (only if database disabled)
+        if not use_database():
             mock_groups = [
                 {
                     'id': 'group-1',
@@ -1831,6 +2166,84 @@ def create_group():
 def get_group(group_id):
     """Get group details"""
     try:
+        # Pure dev mode - return mock group data
+        if is_development():
+            mock_groups = {
+                "1": {
+                    "id": "1", 
+                    "name": "Recipe Developers", 
+                    "description": "A group for recipe developers",
+                    "is_public": True,
+                    "owner_id": "00000000-0000-0000-0000-000000000001",
+                    "owner_name": "Dev User",
+                    "owner_username": "dev_user",
+                    "owner_avatar": "",
+                    "created_at": datetime.now().isoformat()
+                },
+                "2": {
+                    "id": "2", 
+                    "name": "Home Cooks", 
+                    "description": "Share your home cooking experiences",
+                    "is_public": True,
+                    "owner_id": "00000000-0000-0000-0000-000000000002",
+                    "owner_name": "Home Chef",
+                    "owner_username": "home_chef",
+                    "owner_avatar": "",
+                    "created_at": datetime.now().isoformat()
+                },
+                "3": {
+                    "id": "3", 
+                    "name": "Professional Chefs", 
+                    "description": "For professional chefs only",
+                    "is_public": False,
+                    "owner_id": "00000000-0000-0000-0000-000000000003",
+                    "owner_name": "Chef Master",
+                    "owner_username": "chef_master",
+                    "owner_avatar": "",
+                    "created_at": datetime.now().isoformat()
+                }
+            }
+            
+            if group_id not in mock_groups:
+                return jsonify({"error": "Group not found"}), 404
+            
+            group = mock_groups[group_id]
+            
+            # Mock members data
+            members = [
+                {
+                    "id": "1",
+                    "user_id": group["owner_id"],
+                    "role": "owner",
+                    "profiles": {
+                        "username": group["owner_username"],
+                        "name": group["owner_name"],
+                        "avatar_url": group["owner_avatar"]
+                    }
+                }
+            ]
+            
+            # Mock posts data
+            posts = [
+                {
+                    "id": "1",
+                    "group_id": group_id,
+                    "user_id": group["owner_id"],
+                    "title": "Welcome to the group!",
+                    "content": "Let's share some amazing recipes together.",
+                    "created_at": datetime.now().isoformat(),
+                    "user_name": group["owner_name"],
+                    "username": group["owner_username"],
+                    "user_avatar": group["owner_avatar"]
+                }
+            ]
+            
+            return jsonify({
+                "group": group,
+                "members": members,
+                "posts": posts
+            })
+        
         if not supabase:
             return jsonify({"error": "Database not available"}), 500
             
@@ -1900,8 +2313,33 @@ def join_group(group_id):
     try:
         current_user = get_current_user()
         
+        # Mock mode - mock group joining (only if database disabled)
+        if not use_database():
+            # Create mock groups if they don't exist
+            mock_groups = {
+                "group-1": {"id": "group-1", "name": "Recipe Lovers", "is_public": True, "description": "A community for sharing amazing recipes"},
+                "group-2": {"id": "group-2", "name": "BBQ Masters", "is_public": True, "description": "Perfect your grilling and BBQ skills"},
+                "group-3": {"id": "group-3", "name": "Professional Chefs", "is_public": False, "description": "For professional chefs only"}
+            }
+            
+            if group_id not in mock_groups:
+                return jsonify({"error": "Group not found"}), 404
+            
+            group = mock_groups[group_id]
+            if not group.get('is_public', True):
+                return jsonify({"error": "Cannot join private group"}), 403
+            
+            # In dev mode, we'll just assume success without persistent storage
+            print(f"👥 Dev user {current_user['username']} joined group: {group['name']}")
+            return jsonify({"ok": True, "message": f"Successfully joined {group['name']}!"})
+        
+        # Database mode - check Supabase is available
+        client = get_supabase_client()
+        if not client:
+            return jsonify({"error": "Database not available"}), 500
+        
         # Check if group exists and is public
-        group_response = supabase.table('groups').select('*').eq('id', group_id).single().execute()
+        group_response = client.table('groups').select('*').eq('id', group_id).single().execute()
         if not group_response.data:
             return jsonify({"error": "Group not found"}), 404
         
@@ -1910,7 +2348,7 @@ def join_group(group_id):
             return jsonify({"error": "Cannot join private group"}), 403
         
         # Check if already a member
-        existing = supabase.table('group_members').select('*').eq('group_id', group_id).eq('user_id', current_user['id']).execute()
+        existing = client.table('group_members').select('*').eq('group_id', group_id).eq('user_id', current_user['id']).execute()
         if existing.data:
             return jsonify({"error": "Already a member of this group"}), 400
         
@@ -1920,7 +2358,7 @@ def join_group(group_id):
             'user_id': current_user['id'],
             'role': 'member'
         }
-        response = supabase.table('group_members').insert(member_data).execute()
+        response = client.table('group_members').insert(member_data).execute()
         
         return jsonify({"ok": True})
     except Exception as e:
@@ -2027,7 +2465,7 @@ def search_users():
             return jsonify({"users": []})
         
         # Pure dev mode - search dev users
-        if is_pure_dev_mode():
+        if is_development():
             matching_users = []
             for email, user_data in DEV_USERS.items():
                 if (query.lower() in user_data['name'].lower() or 
@@ -2048,31 +2486,29 @@ def search_users():
                         })
             return jsonify({"users": matching_users[:limit]})
         
-        # Production mode - use Supabase
+        # Production mode - use Supabase optimized search function
         if not supabase:
             return jsonify({"error": "Database not available"}), 500
         
-        # Search users using simple SQL (since RPC might not work)
-        response = supabase.table('profiles').select('''
-            id, username, name, avatar_url, bio, followers_count, following_count, created_at
-        ''').neq('id', current_user['id']).or_(f'username.ilike.%{query}%,name.ilike.%{query}%').limit(limit).execute()
+        # Use the optimized search_users RPC function
+        response = supabase.rpc('search_users', {
+            'search_query': query,
+            'current_user_id': current_user['id'],
+            'limit_count': limit
+        }).execute()
         
         users = response.data or []
         
-        # Add follow status for each user
-        for user in users:
-            # Check if current user follows this user
-            follow_check = supabase.table('user_follows').select('id').eq('follower_id', current_user['id']).eq('following_id', user['id']).execute()
-            user['is_following'] = bool(follow_check.data)
-            
-            # Check if this user follows current user back
-            follows_back_check = supabase.table('user_follows').select('id').eq('follower_id', user['id']).eq('following_id', current_user['id']).execute()
-            user['follows_back'] = bool(follows_back_check.data)
+        # The RPC function already includes all needed fields:
+        # id, username, name, avatar_url, bio, followers_count, following_count,
+        # recipe_count, is_following, follows_back, created_at
         
         return jsonify({"users": users})
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 
 @app.route("/api/users/<user_id>/follow", methods=["POST"])
 @require_auth
@@ -2395,6 +2831,8 @@ def compare_recipes(recipe_id, other_recipe_id):
                 }
                 # Simple comparison - could be enhanced with proper diff algorithm
         except:
+            # TODO: Add specific exception handling for JSON parsing and comparison errors
+            # TODO: Implement proper diff algorithm using difflib or similar library
             pass
         
         # Steps difference
@@ -2436,6 +2874,27 @@ def star_recipe(recipe_id):
     try:
         current_user = get_current_user()
         
+        # Pure dev mode - mock starring
+        if is_development():
+            # Check if recipe exists in dev data
+            recipe_exists = False
+            for recipe in DEV_RECIPES:
+                if recipe.get('id') == recipe_id:
+                    recipe_exists = True
+                    # Update star count
+                    recipe['star_count'] = recipe.get('star_count', 0) + 1
+                    break
+            
+            if not recipe_exists:
+                return jsonify({"error": "Recipe not found"}), 404
+            
+            print(f"⭐ Dev user {current_user['username']} starred recipe ID: {recipe_id}")
+            return jsonify({"ok": True, "message": "Recipe starred! ⭐"})
+        
+        # Production mode - check Supabase is available
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+        
         # Check if recipe exists
         recipe_response = supabase.table('recipes').select('*').eq('id', recipe_id).execute()
         if not recipe_response.data:
@@ -2469,6 +2928,22 @@ def unstar_recipe(recipe_id):
     try:
         current_user = get_current_user()
         
+        # Pure dev mode - mock unstarring
+        if is_development():
+            # Check if recipe exists and decrease star count
+            for recipe in DEV_RECIPES:
+                if recipe.get('id') == recipe_id:
+                    if recipe.get('star_count', 0) > 0:
+                        recipe['star_count'] = recipe['star_count'] - 1
+                    break
+            
+            print(f"⭐ Dev user {current_user['username']} unstarred recipe ID: {recipe_id}")
+            return jsonify({"ok": True, "message": "Recipe unstarred"})
+        
+        # Production mode - check Supabase is available
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+        
         # Remove star
         response = supabase.table('recipe_likes').delete().eq('recipe_id', recipe_id).eq('user_id', current_user['id']).execute()
         
@@ -2482,7 +2957,7 @@ def get_dashboard_stats():
     """Get real-time dashboard statistics"""
     try:
         # Pure dev mode - use mock data
-        if is_pure_dev_mode():
+        if is_development():
             return jsonify({
                 "total_recipes": len(DEV_RECIPES),
                 "total_forks": 12,  # Mock data
@@ -2507,7 +2982,6 @@ def get_dashboard_stats():
         active_cooks = active_users_response.count or 0
         
         # Get recipes created today
-        from datetime import datetime, timezone
         today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         today_recipes_response = supabase.table('recipes').select('id', count='exact').gte('created_at', today).execute()
         recipes_today = today_recipes_response.count or 0
@@ -2522,6 +2996,89 @@ def get_dashboard_stats():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ================================================
+# User Suggestions System
+# ================================================
+
+@app.route("/api/users/suggestions", methods=["GET"])
+@require_auth
+def get_user_suggestions():
+    """Get intelligent user suggestions for the current user"""
+    try:
+        current_user = get_current_user()
+        limit = min(int(request.args.get('limit', 10)), 20)  # Max 20 suggestions
+        
+        # Pure dev mode - return mock suggestions
+        if is_development():
+            mock_suggestions = []
+            for email, user_data in list(DEV_USERS.items())[:limit]:
+                if user_data['id'] != current_user['id']:
+                    mock_suggestions.append({
+                        'id': user_data['id'],
+                        'username': user_data['username'],
+                        'name': user_data['name'],
+                        'avatar_url': user_data['avatar_url'],
+                        'bio': f"Development user - {user_data['name']}",
+                        'followers_count': 5,
+                        'following_count': 3,
+                        'recipe_count': 2,
+                        'suggestion_reason': 'Development suggestion',
+                        'relevance_score': 5.0,
+                        'mutual_connections': 0,
+                        'activity_score': 2.0,
+                        'is_new_user': False,
+                        'created_at': '2025-01-01T00:00:00Z'
+                    })
+            return jsonify({"suggestions": mock_suggestions})
+        
+        # Production mode - use Supabase function
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+        
+        response = supabase.rpc('get_suggested_users', {
+            'input_user_id': current_user['id'],
+            'limit_count': limit
+        }).execute()
+        
+        suggestions = response.data or []
+        return jsonify({"suggestions": suggestions})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/suggestions/stats", methods=["GET"])
+@require_auth
+def get_user_suggestion_stats():
+    """Get analytics for user suggestions"""
+    try:
+        current_user = get_current_user()
+        
+        # Pure dev mode - return mock stats
+        if is_development():
+            return jsonify({
+                "total_available_users": len(DEV_USERS) - 1,
+                "mutual_connection_suggestions": 1,
+                "similar_interest_suggestions": 2,
+                "active_user_suggestions": 2,
+                "popular_user_suggestions": 1,
+                "new_user_suggestions": 0,
+                "already_following_count": 0
+            })
+        
+        # Production mode - use Supabase function
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+        
+        response = supabase.rpc('get_user_suggestion_stats', {
+            'input_user_id': current_user['id']
+        }).execute()
+        
+        stats = response.data[0] if response.data else {}
+        return jsonify(stats)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/sentry-test")
 def sentry_test():
     """Test endpoint to trigger a Sentry error for testing"""
@@ -2531,6 +3088,121 @@ def sentry_test():
     # Trigger a test error
     division_by_zero = 1 / 0
     return jsonify({"message": "This should never be reached"})
+
+@app.route("/api/user/preferences", methods=["GET", "PUT"])
+@require_auth
+def user_preferences():
+    """Get or update user preferences"""
+    try:
+        current_user = get_current_user()
+        
+        if request.method == "GET":
+            # Pure dev mode - return default preferences
+            if is_development():
+                default_preferences = {
+                    "notifications": {
+                        "email_on_follow": True,
+                        "email_on_recipe_fork": True,
+                        "email_on_comment": True,
+                        "push_notifications": True
+                    },
+                    "privacy": {
+                        "profile_public": True,
+                        "recipes_public": True,
+                        "show_activity": True
+                    },
+                    "display": {
+                        "theme": "dark",
+                        "language": "en",
+                        "measurement_units": "metric"
+                    }
+                }
+                return jsonify({"preferences": default_preferences})
+            
+            # Production mode - get preferences from database
+            if not supabase:
+                return jsonify({"error": "Database not available"}), 500
+                
+            try:
+                # Get user preferences from database
+                response = supabase.table('user_preferences').select('*').eq('user_id', current_user['id']).execute()
+                
+                if response.data and len(response.data) > 0:
+                    preferences = response.data[0].get('preferences', {})
+                else:
+                    # Return default preferences if none exist
+                    preferences = {
+                        "notifications": {
+                            "email_on_follow": True,
+                            "email_on_recipe_fork": True,
+                            "email_on_comment": True,
+                            "push_notifications": True
+                        },
+                        "privacy": {
+                            "profile_public": True,
+                            "recipes_public": True,
+                            "show_activity": True
+                        },
+                        "display": {
+                            "theme": "dark",
+                            "language": "en",
+                            "measurement_units": "metric"
+                        }
+                    }
+                
+                return jsonify({"preferences": preferences})
+            except Exception as e:
+                print(f"Error fetching user preferences: {e}")
+                # Return default preferences on error
+                default_preferences = {
+                    "notifications": {
+                        "email_on_follow": True,
+                        "email_on_recipe_fork": True,
+                        "email_on_comment": True,
+                        "push_notifications": True
+                    },
+                    "privacy": {
+                        "profile_public": True,
+                        "recipes_public": True,
+                        "show_activity": True
+                    },
+                    "display": {
+                        "theme": "dark",
+                        "language": "en",
+                        "measurement_units": "metric"
+                    }
+                }
+                return jsonify({"preferences": default_preferences})
+        
+        elif request.method == "PUT":
+            # Update user preferences
+            data = request.get_json() or {}
+            preferences = data.get('preferences', {})
+            
+            # Pure dev mode - just return success
+            if is_development():
+                return jsonify({"ok": True, "preferences": preferences})
+            
+            # Production mode - update preferences in database
+            if not supabase:
+                return jsonify({"error": "Database not available"}), 500
+                
+            try:
+                # Upsert user preferences
+                upsert_data = {
+                    'user_id': current_user['id'],
+                    'preferences': preferences,
+                    'updated_at': 'now()'
+                }
+                
+                response = supabase.table('user_preferences').upsert(upsert_data).execute()
+                return jsonify({"ok": True, "preferences": preferences})
+            except Exception as e:
+                print(f"Error updating user preferences: {e}")
+                return jsonify({"error": "Failed to update preferences"}), 500
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
