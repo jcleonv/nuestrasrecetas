@@ -1,0 +1,151 @@
+{
+  "timestamp": "2025-08-04T00:33:05.110629",
+  "server_health": {
+    "status": "passed",
+    "response": {
+      "database": "connected",
+      "profiles_count": 2,
+      "sentry": "enabled",
+      "status": "healthy",
+      "supabase": "enabled"
+    },
+    "supabase_connected": true,
+    "database_connected": true,
+    "profile_count": 2
+  },
+  "api_tests": {
+    "total": 5,
+    "passed": 2,
+    "failed": 3,
+    "tests": [
+      {
+        "endpoint": "GET /api/recipes",
+        "status_code": 401,
+        "auth_required": false,
+        "content_type": "application/json",
+        "status": "failed"
+      },
+      {
+        "endpoint": "GET /api/activity",
+        "status_code": 404,
+        "auth_required": false,
+        "content_type": "text/html; charset=utf-8",
+        "status": "failed"
+      },
+      {
+        "endpoint": "GET /api/community/feed",
+        "status_code": 401,
+        "auth_required": true,
+        "content_type": "application/json",
+        "status": "passed",
+        "note": "Protected endpoint correctly returns 401"
+      },
+      {
+        "endpoint": "GET /api/users/suggestions",
+        "status_code": 401,
+        "auth_required": true,
+        "content_type": "application/json",
+        "status": "passed",
+        "note": "Protected endpoint correctly returns 401"
+      },
+      {
+        "endpoint": "GET /api/user/preferences",
+        "status_code": 404,
+        "auth_required": true,
+        "content_type": "text/html; charset=utf-8",
+        "status": "failed"
+      }
+    ]
+  },
+  "frontend_tests": {
+    "total": 6,
+    "passed": 4,
+    "failed": 2,
+    "tests": [
+      {
+        "route": "/",
+        "status_code": 200,
+        "status": "passed",
+        "has_html": true,
+        "size": 18224
+      },
+      {
+        "route": "/community",
+        "status_code": 200,
+        "status": "passed",
+        "has_html": true,
+        "size": 53047
+      },
+      {
+        "route": "/activity",
+        "status_code": 404,
+        "status": "failed",
+        "has_html": true,
+        "size": 207
+      },
+      {
+        "route": "/recipes",
+        "status_code": 404,
+        "status": "failed",
+        "has_html": true,
+        "size": 207
+      },
+      {
+        "route": "/profile",
+        "status_code": 200,
+        "status": "passed",
+        "has_html": true,
+        "size": 18224
+      },
+      {
+        "route": "/groups",
+        "status_code": 200,
+        "status": "passed",
+        "has_html": true,
+        "size": 23027
+      }
+    ]
+  },
+  "database_tests": {
+    "status": "passed",
+    "connection": "active",
+    "profile_count": 2,
+    "supabase_enabled": true
+  },
+  "performance_tests": {
+    "average_response_time_ms": 28.27,
+    "tests": [
+      {
+        "endpoint": "/",
+        "response_time_ms": 1.36,
+        "status_code": 200,
+        "performance": "good"
+      },
+      {
+        "endpoint": "/health",
+        "response_time_ms": 108.92,
+        "status_code": 200,
+        "performance": "good"
+      },
+      {
+        "endpoint": "/api/recipes",
+        "response_time_ms": 1.65,
+        "status_code": 401,
+        "performance": "good"
+      },
+      {
+        "endpoint": "/api/activity",
+        "response_time_ms": 1.13,
+        "status_code": 404,
+        "performance": "good"
+      }
+    ]
+  },
+  "summary": {
+    "total_tests": 13,
+    "passed": 8,
+    "failed": 5,
+    "success_rate": 61.54,
+    "status": "FAILED"
+  }
+}

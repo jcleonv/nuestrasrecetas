@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "error": "Environment setup failed",
+  "timestamp": "2025-08-04T00:18:32.737423",
+  "fix_recommendations": [
+    "FixRecommendation(issue_type='Test Environment Setup', severity='critical', description='Failed to setup test environment: Environment setup failed', fix_code=None, file_path=None, line_number=None, priority=1)"
+  ]
+}

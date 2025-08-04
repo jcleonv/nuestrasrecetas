@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Detail - NuestrasRecetas.club</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-2xl font-bold text-emerald-600">NuestrasRecetas.club</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="text-gray-700 hover:text-emerald-600">Dashboard</a>
+                    <a href="/community" class="text-gray-700 hover:text-emerald-600">Community</a>
+                    <a href="/recipes" class="text-gray-700 hover:text-emerald-600">Browse Recipes</a>
+                    <div id="user-menu" class="hidden">
+                        <span id="username-display" class="text-gray-700"></span>
+                        <button onclick="logout()" class="ml-4 text-red-600 hover:text-red-800">Logout</button>
+                    </div>
+                    <div id="auth-buttons">
+                        <a href="/login" class="text-emerald-600 hover:text-emerald-800">Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Recipe Detail Content -->
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div id="loading" class="text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Loading recipe...</p>
+        </div>
+
+        <div id="recipe-content" class="hidden">
+            <!-- Recipe Header -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h1 id="recipe-title" class="text-3xl font-bold text-gray-900 mb-2"></h1>
+                        <p id="recipe-description" class="text-gray-600 mb-4"></p>
+                        <div class="flex items-center space-x-4 text-sm text-gray-500">
+                            <span id="recipe-author" class="flex items-center">
+                                <img id="author-avatar" class="w-6 h-6 rounded-full mr-2" src="" alt="">
+                                By <span id="author-name" class="font-medium"></span>
+                            </span>
+                            <span id="recipe-date"></span>
+                            <span id="recipe-category" class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded"></span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="star-button" onclick="toggleStar()" class="flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+                            <span id="star-icon">⭐</span>
+                            <span id="star-text" class="ml-2">Star</span>
+                        </button>
+                        <button id="fork-button" onclick="forkRecipe()" class="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700">
+                            🍴 Fork
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recipe Stats -->
+                <div class="grid grid-cols-4 gap-4 text-center py-4 border-t border-gray-200">
+                    <div>
+                        <div id="servings" class="text-2xl font-bold text-emerald-600">-</div>
+                        <div class="text-sm text-gray-500">Servings</div>
+                    </div>
+                    <div>
+                        <div id="prep-time" class="text-2xl font-bold text-emerald-600">-</div>
+                        <div class="text-sm text-gray-500">Prep Time</div>
+                    </div>
+                    <div>
+                        <div id="cook-time" class="text-2xl font-bold text-emerald-600">-</div>
+                        <div class="text-sm text-gray-500">Cook Time</div>
+                    </div>
+                    <div>
+                        <div id="difficulty" class="text-2xl font-bold text-emerald-600">-</div>
+                        <div class="text-sm text-gray-500">Difficulty</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recipe Content -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Ingredients -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4">Ingredients</h2>
+                        <ul id="ingredients-list" class="space-y-2">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Instructions -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4">Instructions</h2>
+                        <div id="instructions-content" class="prose max-w-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-message" class="hidden text-center py-12">
+            <div class="text-red-600 text-xl mb-4">Recipe not found</div>
+            <p class="text-gray-600">The recipe you're looking for doesn't exist or is not public.</p>
+            <a href="/recipes" class="mt-4 inline-block bg-emerald-600 text-white px-6 py-2 rounded-md hover:bg-emerald-700">Browse Recipes</a>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="success-toast" class="hidden fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-md shadow-lg z-50">
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+        const recipeId = {{ recipe_id }};
+        let currentRecipe = null;
+        let currentUser = null;
+
+        // Check authentication
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    currentUser = await response.json();
+                    document.getElementById('username-display').textContent = currentUser.username || currentUser.email;
+                    document.getElementById('user-menu').classList.remove('hidden');
+                    document.getElementById('auth-buttons').classList.add('hidden');
+                }
+            } catch (error) {
+                console.log('Not authenticated');
+            }
+        }
+
+        // Load recipe
+        async function loadRecipe() {
+            try {
+                const response = await fetch(`/api/recipe/${recipeId}`);
+                if (!response.ok) {
+                    throw new Error('Recipe not found');
+                }
+
+                currentRecipe = await response.json();
+                displayRecipe(currentRecipe);
+                
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('recipe-content').classList.remove('hidden');
+            } catch (error) {
+                console.error('Failed to load recipe:', error);
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error-message').classList.remove('hidden');
+            }
+        }
+
+        // Display recipe
+        function displayRecipe(recipe) {
+            document.getElementById('recipe-title').textContent = recipe.title;
+            document.getElementById('recipe-description').textContent = recipe.description || '';
+            
+            // Author info
+            if (recipe.author) {
+                document.getElementById('author-name').textContent = recipe.author.name || recipe.author.username;
+                document.getElementById('author-avatar').src = recipe.author.avatar_url || '/static/default-avatar.png';
+            }
+            
+            document.getElementById('recipe-date').textContent = new Date(recipe.created_at).toLocaleDateString();
+            
+            if (recipe.category) {
+                document.getElementById('recipe-category').textContent = recipe.category;
+            } else {
+                document.getElementById('recipe-category').style.display = 'none';
+            }
+
+            // Stats
+            document.getElementById('servings').textContent = recipe.servings || '-';
+            document.getElementById('prep-time').textContent = recipe.prep_time ? `${recipe.prep_time}m` : '-';
+            document.getElementById('cook-time').textContent = recipe.cook_time ? `${recipe.cook_time}m` : '-';
+            document.getElementById('difficulty').textContent = recipe.difficulty || '-';
+
+            // Ingredients
+            const ingredientsList = document.getElementById('ingredients-list');
+            ingredientsList.innerHTML = '';
+            
+            if (recipe.ingredients && recipe.ingredients.length > 0) {
+                recipe.ingredients.forEach(ingredient => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center py-2 border-b border-gray-100';
+                    li.innerHTML = `
+                        <span class="font-medium">${ingredient.name}</span>
+                        <span class="text-gray-500">${ingredient.amount} ${ingredient.unit}</span>
+                    `;
+                    ingredientsList.appendChild(li);
+                });
+            }
+
+            // Instructions
+            const instructionsContent = document.getElementById('instructions-content');
+            if (recipe.steps) {
+                // Convert steps to HTML if it's plain text
+                const steps = recipe.steps.split('\n').filter(step => step.trim());
+                const stepsHtml = steps.map((step, index) => 
+                    `<div class="mb-4"><strong>Step ${index + 1}:</strong> ${step}</div>`
+                ).join('');
+                instructionsContent.innerHTML = stepsHtml;
+            } else {
+                instructionsContent.innerHTML = '<p class="text-gray-500">No instructions provided.</p>';
+            }
+
+            // Update star button
+            updateStarButton(recipe.is_starred);
+
+            // Update page title
+            document.title = `${recipe.title} - NuestrasRecetas.club`;
+        }
+
+        // Update star button
+        function updateStarButton(isStarred) {
+            const starButton = document.getElementById('star-button');
+            const starIcon = document.getElementById('star-icon');
+            const starText = document.getElementById('star-text');
+            
+            if (isStarred) {
+                starButton.className = 'flex items-center px-4 py-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-md hover:bg-yellow-200';
+                starIcon.textContent = '⭐';
+                starText.textContent = 'Starred';
+            } else {
+                starButton.className = 'flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50';
+                starIcon.textContent = '☆';
+                starText.textContent = 'Star';
+            }
+        }
+
+        // Toggle star
+        async function toggleStar() {
+            if (!currentUser) {
+                alert('Please login to star recipes');
+                return;
+            }
+
+            try {
+                const endpoint = currentRecipe.is_starred ? 'unstar' : 'star';
+                const response = await fetch(`/api/recipes/${recipeId}/${endpoint}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    currentRecipe.is_starred = !currentRecipe.is_starred;
+                    updateStarButton(currentRecipe.is_starred);
+                    showToast(currentRecipe.is_starred ? 'Recipe starred!' : 'Recipe unstarred!');
+                } else {
+                    throw new Error('Failed to toggle star');
+                }
+            } catch (error) {
+                console.error('Failed to toggle star:', error);
+                alert('Failed to update star status');
+            }
+        }
+
+        // Fork recipe
+        async function forkRecipe() {
+            if (!currentUser) {
+                alert('Please login to fork recipes');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/recipes/${recipeId}/fork`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        is_public: true
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showToast('Recipe forked successfully! Redirecting to your copy...');
+                    setTimeout(() => {
+                        window.location.href = `/recipe/${result.id}`;
+                    }, 2000);
+                } else {
+                    throw new Error('Failed to fork recipe');
+                }
+            } catch (error) {
+                console.error('Failed to fork recipe:', error);
+                alert('Failed to fork recipe');
+            }
+        }
+
+        // Show toast message
+        function showToast(message) {
+            const toast = document.getElementById('success-toast');
+            const toastMessage = document.getElementById('toast-message');
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Logout
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadRecipe();
+        });
+    </script>
+</body>
+</html>

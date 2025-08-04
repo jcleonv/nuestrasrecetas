@@ -1,0 +1,168 @@
+{
+  "timestamp": "2025-08-04T09:56:20.392296",
+  "server_health": {
+    "status": "passed",
+    "response": {
+      "database": "connected",
+      "profiles_count": 2,
+      "sentry": "enabled",
+      "status": "healthy",
+      "supabase": "enabled"
+    },
+    "supabase_connected": true,
+    "database_connected": true,
+    "profile_count": 2
+  },
+  "api_tests": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "tests": [
+      {
+        "endpoint": "GET /api/recipes",
+        "status_code": 200,
+        "auth_required": false,
+        "content_type": "application/json",
+        "status": "passed"
+      },
+      {
+        "endpoint": "GET /api/activity",
+        "status_code": 401,
+        "auth_required": true,
+        "content_type": "application/json",
+        "status": "passed",
+        "note": "Protected endpoint correctly returns 401"
+      },
+      {
+        "endpoint": "GET /api/community/feed",
+        "status_code": 401,
+        "auth_required": true,
+        "content_type": "application/json",
+        "status": "passed",
+        "note": "Protected endpoint correctly returns 401"
+      },
+      {
+        "endpoint": "GET /api/users/suggestions",
+        "status_code": 401,
+        "auth_required": true,
+        "content_type": "application/json",
+        "status": "passed",
+        "note": "Protected endpoint correctly returns 401"
+      },
+      {
+        "endpoint": "GET /api/user/preferences",
+        "status_code": 401,
+        "auth_required": true,
+        "content_type": "application/json",
+        "status": "passed",
+        "note": "Protected endpoint correctly returns 401"
+      }
+    ]
+  },
+  "frontend_tests": {
+    "total": 6,
+    "passed": 3,
+    "failed": 3,
+    "tests": [
+      {
+        "route": "/",
+        "status_code": 200,
+        "auth_required": false,
+        "has_html": true,
+        "size": 18224,
+        "status": "passed"
+      },
+      {
+        "route": "/recipes",
+        "status_code": 200,
+        "auth_required": false,
+        "has_html": true,
+        "size": 37582,
+        "status": "passed"
+      },
+      {
+        "route": "/activity",
+        "status_code": 401,
+        "auth_required": true,
+        "has_html": false,
+        "size": 41,
+        "status": "passed",
+        "note": "Protected route correctly returns 401"
+      },
+      {
+        "route": "/community",
+        "status_code": 200,
+        "auth_required": true,
+        "has_html": true,
+        "size": 53047,
+        "status": "failed"
+      },
+      {
+        "route": "/profile",
+        "status_code": 200,
+        "auth_required": true,
+        "has_html": true,
+        "size": 18224,
+        "status": "failed"
+      },
+      {
+        "route": "/groups",
+        "status_code": 200,
+        "auth_required": true,
+        "has_html": true,
+        "size": 23027,
+        "status": "failed"
+      }
+    ]
+  },
+  "database_tests": {
+    "status": "passed",
+    "connection": "active",
+    "profile_count": 2,
+    "supabase_enabled": true
+  },
+  "performance_tests": {
+    "average_response_time_ms": 47.73,
+    "tests": [
+      {
+        "endpoint": "/",
+        "response_time_ms": 1.83,
+        "status_code": 200,
+        "auth_required": false,
+        "performance": "good",
+        "note": null
+      },
+      {
+        "endpoint": "/health",
+        "response_time_ms": 94.72,
+        "status_code": 200,
+        "auth_required": false,
+        "performance": "good",
+        "note": null
+      },
+      {
+        "endpoint": "/api/recipes",
+        "response_time_ms": 91.27,
+        "status_code": 200,
+        "auth_required": false,
+        "performance": "good",
+        "note": null
+      },
+      {
+        "endpoint": "/api/activity",
+        "response_time_ms": 3.08,
+        "status_code": 401,
+        "auth_required": true,
+        "performance": "good",
+        "note": "Protected endpoint - 401 expected"
+      }
+    ]
+  },
+  "summary": {
+    "total_tests": 13,
+    "passed": 10,
+    "failed": 3,
+    "success_rate": 76.92,
+    "status": "PASSED"
+  }
+}

@@ -1,0 +1,16 @@
+# Test Dependencies for NuestrasRecetas.club Test Suite
+
+# HTTP requests for API testing
+requests>=2.28.0
+
+# Browser automation for frontend testing
+playwright>=1.40.0
+
+# JSON handling (built-in, but explicit for clarity)
+# json
+
+# Async support (built-in with Python 3.7+)
+# asyncio
+
+# Data structures
+# dataclasses (built-in with Python 3.7+)

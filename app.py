@@ -374,7 +374,8 @@ def recipes_page():
 @app.route("/recipe/<int:recipe_id>")
 def recipe_detail_page(recipe_id):
     """Recipe detail page - shows individual recipe"""
-    return render_template('index.html')
+    # Create a recipe detail template that loads the specific recipe
+    return render_template('recipe_detail.html', recipe_id=recipe_id)
 
 @app.route("/activity")
 @require_auth
@@ -661,23 +662,33 @@ def list_recipes():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/recipe/<int:rid>", methods=["GET"])
-@require_auth
 def get_recipe(rid):
     try:
         current_user = get_current_user()
         
-        # Get recipe from Supabase
-        response = supabase.table('recipes').select('*').eq('id', rid).eq('user_id', current_user['id']).execute()
+        # Get public recipe from Supabase with author info
+        response = supabase.table('recipes').select('''
+            *,
+            author:profiles!recipes_user_id_fkey(username, name, avatar_url)
+        ''').eq('id', rid).eq('is_public', True).execute()
         
         if not response.data or len(response.data) == 0:
-            return jsonify({"error": "not found"}), 404
+            return jsonify({"error": "Recipe not found or not public"}), 404
             
-        recipe = response.data
+        recipe = response.data[0]
         # Parse ingredients JSON
         try:
             recipe['ingredients'] = json.loads(recipe.get('ingredients_json', '[]'))
         except:
             recipe['ingredients'] = []
+        
+        # Add user interaction data if logged in
+        if current_user:
+            # Check if user has starred this recipe
+            star_response = supabase.table('recipe_stars').select('*').eq('recipe_id', rid).eq('user_id', current_user['id']).execute()
+            recipe['is_starred'] = len(star_response.data) > 0
+        else:
+            recipe['is_starred'] = False
             
         return jsonify(recipe)
     except Exception as e:
@@ -1116,133 +1127,45 @@ def build_groceries():
 def get_profile(username):
     """Get public profile information"""
     try:
-        print(f"🔧 Getting profile for username: {username}")
-        
-        # For now, return a basic profile for the current user to fix the 500 error
-        try:
-            current_user = get_current_user()
-            if current_user and current_user.get('username') == username:
-                # Return current user profile
-                return jsonify({
-                    'id': current_user['id'],
-                    'username': current_user.get('username', username),
-                    'name': current_user.get('name', username),
-                    'email': current_user.get('email', ''),
-                    'avatar_url': current_user.get('avatar_url', ''),
-                    'bio': current_user.get('bio', ''),
-                    'created_at': current_user.get('created_at', ''),
-                    'followers_count': current_user.get('followers_count', 0),
-                    'following_count': current_user.get('following_count', 0),
-                    'recipes_count': 11,  # Based on test results
-                    'is_following': False,
-                    'follows_back': False
-                })
-        except Exception as e:
-            print(f"🔧 Error getting current user in profile: {e}")
-        
-        print(f"🔧 is_development(): {is_development()}")
-        print(f"🔧 supabase client type: {type(supabase)}")
-        # Check dev users first if in development mode
-        if is_development():
-            for email, user_data in DEV_USERS.items():
-                if user_data['username'] == username:
-                    return jsonify({
-                        'id': user_data['id'],
-                        'username': user_data['username'], 
-                        'name': user_data['name'],
-                        'email': user_data['email'],
-                        'avatar_url': user_data['avatar_url'],
-                        'bio': f"Development user profile for {user_data['name']}",
-                        'followers_count': 5,
-                        'following_count': 3,
-                        'recipes_count': len(DEV_RECIPES),
-                        'is_following': False,
-                        'follows_back': False,
-                        'created_at': '2025-01-01T00:00:00Z'
-                    })
-            # Fall through to production mode for non-dev users
-        
-        # Production mode - use Supabase
-        if not supabase:
-            return jsonify({"error": "Database not available"}), 500
-            
-        # Try to get profile data from profiles table first
-        profile = None
-        print(f"🔧 Querying profiles table for username: {username}")
-        profile_response = supabase.table('profiles').select('*').eq('username', username).execute()
-        print(f"🔧 Profile response type: {type(profile_response)}")
-        print(f"🔧 Profile response: {profile_response}")
-        
-        profile_data = getattr(profile_response, 'data', [])
-        if profile_data and len(profile_data) > 0:
-            profile = profile_data[0]
-        else:
-            # If no profile found by username, try to find user directly by username
-            # or create a basic profile from current user data if this is their own profile
-            try:
-                # Try to find user in profiles table by username
-                current_user = get_current_user()
-                if current_user and current_user.get('username') == username:
-                    # This is the current user requesting their own profile
-                    profile = {
-                        'id': current_user['id'],
-                        'username': current_user.get('username', username),
-                        'name': current_user.get('name', username),
-                        'email': current_user.get('email', ''),
-                        'avatar_url': current_user.get('avatar_url', ''),
-                        'bio': current_user.get('bio', ''),
-                        'created_at': current_user.get('created_at', ''),
-                        'followers_count': current_user.get('followers_count', 0),
-                        'following_count': current_user.get('following_count', 0),
-                        'recipes_count': 0  # Will calculate below
-                    }
-                else:
-                    return jsonify({"error": "Profile not found"}), 404
-            except Exception as e:
-                print(f"Error creating profile from current user: {e}")
-                return jsonify({"error": "Profile not found"}), 404
-        
-        # Check if current user is following this profile (if authenticated)
+        # Get current user for follow status
         current_user = get_current_user()
+        
+        # Search for profile by username (usernames can contain @ symbols)
+        response = supabase.table('profiles').select('*').eq('username', username).execute()
+        
+        if not response.data:
+            return jsonify({"error": "Profile not found"}), 404
+            
+        profile = response.data[0]
+        
+        # Get recipe count for this user
+        recipe_response = supabase.table('recipes').select('id').eq('user_id', profile['id']).eq('is_public', True).execute()
+        recipe_count = len(recipe_response.data) if recipe_response.data else 0
+        
+        # Check if current user is following this profile
         is_following = False
         follows_back = False
-        
         if current_user and current_user['id'] != profile['id']:
-            # Check if current user follows this profile
-            try:
-                follow_check = supabase.table('user_follows').select('id').eq('follower_id', current_user['id']).eq('following_id', profile['id']).execute()
-                print(f"🔧 Follow check response: {follow_check}")
-                is_following = bool(getattr(follow_check, 'data', []))
-            except Exception as e:
-                print(f"🔧 Follow check error: {e}")
-                is_following = False
+            follow_response = supabase.table('user_follows').select('*').eq('follower_id', current_user['id']).eq('following_id', profile['id']).execute()
+            is_following = len(follow_response.data) > 0
             
-            # Check if this profile follows current user back
-            try:
-                follows_back_check = supabase.table('user_follows').select('id').eq('follower_id', profile['id']).eq('following_id', current_user['id']).execute()
-                follows_back = bool(getattr(follows_back_check, 'data', []))
-            except Exception as e:
-                print(f"🔧 Follows back check error: {e}")
-                follows_back = False
-        
-        # Add follow status to profile
-        profile['is_following'] = is_following
-        profile['follows_back'] = follows_back
-        
-        # Get user's public recipes (simplified for now)
-        try:
-            recipes_response = supabase.table('recipes').select('*').eq('user_id', profile['id']).eq('is_public', True).order('created_at', desc=True).limit(10).execute()
-        except Exception as e:
-            print(f"Error fetching recipes: {e}")
-            recipes_response = {"data": []}
-        
-        # Get user's groups (temporarily empty until migration is applied)
-        groups_response = {"data": []}
+            # Check if they follow back
+            followback_response = supabase.table('user_follows').select('*').eq('follower_id', profile['id']).eq('following_id', current_user['id']).execute()
+            follows_back = len(followback_response.data) > 0
         
         return jsonify({
-            "profile": profile,
-            "recipes": recipes_response.data or [],
-            "groups": groups_response.data or []
+            'id': profile['id'],
+            'username': profile.get('username', ''),
+            'name': profile.get('name', profile.get('username', '')),
+            'email': profile.get('email', ''),
+            'avatar_url': profile.get('avatar_url', ''),
+            'bio': profile.get('bio', ''),
+            'created_at': profile.get('created_at', ''),
+            'followers_count': profile.get('followers_count', 0),
+            'following_count': profile.get('following_count', 0),
+            'recipes_count': recipe_count,
+            'is_following': is_following,
+            'follows_back': follows_back
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1305,8 +1228,7 @@ def update_profile():
 
 
 
-@app.route("/api/feed", methods=["GET"])
-@require_auth
+@app.route("/api/feed", methods=["GET"])  
 def get_feed():
     """Get user's feed (recipes from followed users)"""
     try:
@@ -1335,7 +1257,6 @@ def get_feed():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/community/feed", methods=["GET"])
-@require_auth
 def get_community_feed():
     """Get enhanced community feed with all activities"""
     try:
@@ -1430,80 +1351,37 @@ def fork_recipe(recipe_id):
         current_user = get_current_user()
         data = request.get_json() or {}
         
-        # Pure dev mode - fork from dev recipes
-        if is_development():
-            # Find the original recipe in dev data
-            original = None
-            for recipe in DEV_RECIPES:
-                if recipe.get('id') == recipe_id:
-                    original = recipe
-                    break
-            
-            if not original:
-                return jsonify({"error": "Recipe not found"}), 404
-            
-            # Create forked recipe with mock data
-            new_fork_id = len(DEV_RECIPES) + 1000
-            fork_data = {
-                'id': new_fork_id,
-                'user_id': current_user['id'],
-                'title': f"{original['title']} (Fork)",
-                'description': original.get('description', ''),
-                'category': original.get('category', ''),
-                'tags': original.get('tags', ''),
-                'servings': original.get('servings', 2),
-                'steps': original.get('steps', ''),
-                'ingredients_json': original.get('ingredients_json', '[]'),
-                'is_public': data.get('is_public', True),
-                'original_recipe_id': recipe_id,
-                'is_fork': True,
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat(),
-                'version_count': 1,
-                'fork_count': 0,
-                'star_count': 0
-            }
-            
-            DEV_RECIPES.append(fork_data)
-            
-            # Update original recipe's fork count
-            for recipe in DEV_RECIPES:
-                if recipe.get('id') == recipe_id:
-                    recipe['fork_count'] = recipe.get('fork_count', 0) + 1
-                    break
-            
-            print(f"🍴 Created dev fork: {fork_data['title']} (ID: {new_fork_id})")
+        # Get the original recipe from database
+        original_response = supabase.table('recipes').select('*').eq('id', recipe_id).eq('is_public', True).execute()
+        
+        if not original_response.data:
+            return jsonify({"error": "Recipe not found or not public"}), 404
+        
+        original = original_response.data[0]
+        
+        # Check if user already forked this recipe
+        existing_fork = supabase.table('recipe_forks').select('forked_recipe_id').eq('original_recipe_id', recipe_id).eq('forked_by_user_id', current_user['id']).execute()
+        
+        if existing_fork.data:
             return jsonify({
-                "ok": True, 
-                "message": "Recipe forked successfully! 🍴",
-                "forked_recipe_id": new_fork_id
-            })
-        
-        # Production mode - check Supabase is available
-        if not supabase:
-            return jsonify({"error": "Database not available"}), 500
-        
-        # Get original recipe
-        original_recipe = supabase.table('recipes').select('*').eq('id', recipe_id).single().execute()
-        if not original_recipe.data:
-            return jsonify({"error": "Recipe not found"}), 404
-        
-        original = original_recipe.data
+                "error": "You have already forked this recipe", 
+                "existing_fork_id": existing_fork.data[0]['forked_recipe_id']
+            }), 400
         
         # Create forked recipe
         fork_data = {
             'user_id': current_user['id'],
             'title': f"{original['title']} (Fork)",
-            'description': original['description'],
-            'category': original['category'],
-            'tags': original['tags'],
-            'servings': original['servings'],
-            'prep_time': original['prep_time'],
-            'cook_time': original['cook_time'],
-            'difficulty': original['difficulty'],
-            'steps': original['steps'],
-            'ingredients_json': original['ingredients_json'],
-            'image_url': original['image_url'],
+            'description': original.get('description', ''),
+            'category': original.get('category', ''),
+            'tags': original.get('tags', ''),
+            'servings': original.get('servings', 2),
+            'prep_time': original.get('prep_time'),
+            'cook_time': original.get('cook_time'),
+            'difficulty': original.get('difficulty', ''),
+            'steps': original.get('steps', ''),
+            'ingredients_json': original.get('ingredients_json', '[]'),
+            'image_url': original.get('image_url', ''),
             'is_public': data.get('is_public', True),
             'original_recipe_id': recipe_id,
             'is_fork': True
@@ -1516,7 +1394,7 @@ def fork_recipe(recipe_id):
         
         forked_id = forked_recipe.data[0]['id']
         
-        # Create fork relationship with enhanced data
+        # Create fork relationship
         fork_relationship = {
             'original_recipe_id': recipe_id,
             'forked_recipe_id': forked_id,
@@ -1527,56 +1405,15 @@ def fork_recipe(recipe_id):
         
         supabase.table('recipe_forks').insert(fork_relationship).execute()
         
-        # Create initial version (commit) for the forked recipe
-        version_data = {
-            'recipe_id': forked_id,
-            'version_number': 1,
-            'commit_message': f"Initial fork from recipe #{recipe_id}",
-            'author_id': current_user['id'],
-            'changes_json': {"action": "fork", "from_recipe_id": recipe_id},
-            'snapshot_json': {
-                'title': fork_data['title'],
-                'description': fork_data['description'],
-                'ingredients': json.loads(fork_data['ingredients_json']),
-                'steps': fork_data['steps'],
-                'servings': fork_data['servings'],
-                'category': fork_data['category'],
-                'tags': fork_data['tags']
-            }
-        }
-        supabase.table('recipe_versions').insert(version_data).execute()
-        
-        # Create main branch for the forked recipe
-        branch_data = {
-            'recipe_id': forked_id,
-            'branch_name': 'main',
-            'description': 'Main branch',
-            'created_by': current_user['id'],
-            'is_default': True
-        }
-        branch_response = supabase.table('recipe_branches').insert(branch_data).execute()
-        
-        # Update recipe with branch reference
-        if branch_response.data:
-            supabase.table('recipes').update({
-                'current_branch_id': branch_response.data[0]['id']
-            }).eq('id', forked_id).execute()
-        
-        # Add creator as contributor
-        contributor_data = {
-            'recipe_id': forked_id,
-            'contributor_id': current_user['id'],
-            'contribution_type': 'forker',
-            'commit_count': 1
-        }
-        supabase.table('recipe_contributors').insert(contributor_data).execute()
-        
         return jsonify({
             "ok": True, 
             "message": "Recipe forked successfully! 🍴",
+            "id": forked_id,
             "forked_recipe_id": forked_id
         })
+        
     except Exception as e:
+        print(f"Error forking recipe: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/recipes/<int:recipe_id>/forks", methods=["GET"])
