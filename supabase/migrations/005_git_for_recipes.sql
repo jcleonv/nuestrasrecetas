@@ -221,14 +221,14 @@ WITH RECURSIVE fork_tree AS (
         rf.id,
         rf.forked_recipe_id,
         r.title,
-        rf.forked_by_user_id,
+        rf.forked_by,
         p.name,
         p.username,
         1 as depth,
         rf.created_at
     FROM public.recipe_forks rf
     JOIN public.recipes r ON rf.forked_recipe_id = r.id
-    JOIN public.profiles p ON rf.forked_by_user_id = p.id
+    JOIN public.profiles p ON rf.forked_by = p.id
     WHERE rf.original_recipe_id = p_recipe_id
     
     UNION ALL
@@ -238,7 +238,7 @@ WITH RECURSIVE fork_tree AS (
         rf.id,
         rf.forked_recipe_id,
         r.title,
-        rf.forked_by_user_id,
+        rf.forked_by,
         p.name,
         p.username,
         ft.depth + 1,
@@ -246,7 +246,7 @@ WITH RECURSIVE fork_tree AS (
     FROM public.recipe_forks rf
     JOIN fork_tree ft ON rf.original_recipe_id = ft.forked_recipe_id
     JOIN public.recipes r ON rf.forked_recipe_id = r.id
-    JOIN public.profiles p ON rf.forked_by_user_id = p.id
+    JOIN public.profiles p ON rf.forked_by = p.id
 )
 SELECT * FROM fork_tree
 ORDER BY depth, created_at DESC;

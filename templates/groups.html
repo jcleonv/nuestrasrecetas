@@ -354,7 +354,9 @@
     });
 
     function checkAuth() {
-      fetch('/api/auth/me')
+      fetch('/api/auth/me', {
+        credentials: 'include'
+      })
         .then(response => response.json())
         .then(data => {
           if (data.user) {
@@ -420,7 +422,9 @@
         </div>
       `;
 
-      fetch('/api/groups')
+      fetch('/api/groups', {
+        credentials: 'include'
+      })
         .then(response => response.json())
         .then(data => {
           allGroups = data.groups || [];
@@ -574,6 +578,7 @@
 
       fetch('/api/groups', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -601,7 +606,10 @@
     }
 
     function joinGroup(groupId) {
-      fetch(`/api/groups/${groupId}/join`, { method: 'POST' })
+      fetch(`/api/groups/${groupId}/join`, { 
+        method: 'POST',
+        credentials: 'include'
+      })
         .then(response => response.json())
         .then(data => {
           if (data.ok) {
@@ -627,7 +635,10 @@
         return;
       }
 
-      fetch(`/api/groups/${groupId}/leave`, { method: 'POST' })
+      fetch(`/api/groups/${groupId}/leave`, { 
+        method: 'POST',
+        credentials: 'include'
+      })
         .then(response => response.json())
         .then(data => {
           if (data.ok) {
@@ -653,7 +664,10 @@
     }
 
     function logout() {
-      fetch('/api/auth/logout', { method: 'POST' })
+      fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      })
         .then(() => {
           window.location.href = '/';
         })

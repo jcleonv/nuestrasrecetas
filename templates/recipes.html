@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recipes - NuestrasRecetas.club</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#10b981',
+            'primary-dark': '#059669',
+            'dark-bg': '#0f172a',
+            'dark-surface': '#1e293b',
+            'dark-surface-light': '#334155',
+            'dark-border': '#475569',
+            'dark-text': '#f1f5f9',
+            'dark-text-muted': '#94a3b8'
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-in-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+            'pulse-gentle': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' }
+            },
+            slideUp: {
+              '0%': { transform: 'translateY(10px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #475569 #1e293b; }
+    *::-webkit-scrollbar { width: 6px; }
+    *::-webkit-scrollbar-track { background: #1e293b; }
+    *::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    *::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    body { 
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #f1f5f9;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    .glass-panel { 
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    
+    .input { 
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #f1f5f9;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(5px);
+    }
+    .input:focus { 
+      outline: none;
+      border-color: #10b981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+      background: rgba(15, 23, 42, 0.8);
+    }
+    
+    .btn { 
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-weight: 600;
+      color: white;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    .btn:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+    .btn:active { transform: translateY(0); }
+    
+    .btn-secondary {
+      background: rgba(71, 85, 105, 0.3);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      color: #f1f5f9;
+    }
+    .btn-secondary:hover {
+      background: rgba(71, 85, 105, 0.5);
+      border-color: rgba(71, 85, 105, 0.7);
+    }
+    
+    .filter-btn {
+      background: rgba(71, 85, 105, 0.3);
+      border: 1px solid rgba(71, 85, 105, 0.4);
+      color: #94a3b8;
+      border-radius: 8px;
+      padding: 8px 16px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .filter-btn:hover {
+      background: rgba(71, 85, 105, 0.5);
+      color: #f1f5f9;
+    }
+    .filter-btn.active {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: #10b981;
+      color: #10b981;
+    }
+    
+    .recipe-card {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+    .recipe-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+    
+    .loading { animation: pulse-gentle; }
+    
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    /* Mobile Responsive Styles */
+    @media (max-width: 1024px) {
+      .grid.grid-cols-1.lg\:grid-cols-4 {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      
+      .lg\:col-span-1, .lg\:col-span-3 {
+        grid-column: span 1;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .glass-panel {
+        border-radius: 12px;
+        margin: 0;
+        padding: 1rem;
+      }
+      
+      .btn {
+        padding: 12px 16px;
+        font-size: 14px;
+        min-height: 44px;
+      }
+      
+      .input {
+        padding: 12px 16px;
+        font-size: 16px;
+        min-height: 44px;
+      }
+      
+      /* Navigation improvements */
+      nav .max-w-7xl {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      nav .space-x-4 {
+        gap: 0.5rem;
+      }
+      
+      nav a, nav button {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+      }
+      
+      /* Header mobile */
+      .text-3xl { font-size: 1.5rem; }
+      
+      /* Filter buttons mobile */
+      .filter-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+        min-height: 44px;
+      }
+      
+      /* Recipe grid mobile */
+      .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      /* Very small screens */
+      .text-3xl { font-size: 1.25rem; }
+      .text-2xl { font-size: 1.125rem; }
+      
+      /* Filter scrolling on small screens */
+      .filter-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .filter-scroll > div {
+        min-width: max-content;
+      }
+    }
+    
+    /* Touch targets */
+    @media (pointer: coarse) {
+      .btn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 12px 20px;
+      }
+      
+      .filter-btn {
+        min-height: 44px;
+        padding: 12px 16px;
+      }
+      
+      .recipe-card {
+        cursor: pointer;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- Navigation -->
+  <nav class="glass-panel sticky top-0 z-50 mb-4 md:mb-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-14 md:h-16">
+        <div class="flex items-center">
+          <a href="/dashboard" class="text-lg md:text-2xl font-bold text-primary">
+            <i class="fas fa-utensils mr-1 md:mr-2"></i>
+            <span class="hidden sm:inline">NuestrasRecetas</span>
+            <span class="inline sm:hidden">NR</span>
+          </a>
+        </div>
+        <div class="flex items-center space-x-2 md:space-x-4">
+          <a href="/dashboard" class="text-dark-text-muted hover:text-primary transition-colors p-2 md:px-3 md:py-2">
+            <i class="fas fa-home mr-0 md:mr-1"></i>
+            <span class="hidden md:inline">Dashboard</span>
+          </a>
+          <a href="/recipes" class="text-primary font-medium p-2 md:px-3 md:py-2">
+            <i class="fas fa-book mr-0 md:mr-1"></i>
+            <span class="hidden md:inline">Recipes</span>
+          </a>
+          <a href="/community" class="text-dark-text-muted hover:text-primary transition-colors p-2 md:px-3 md:py-2">
+            <i class="fas fa-users mr-0 md:mr-1"></i>
+            <span class="hidden md:inline">Community</span>
+          </a>
+          <a href="/groups" class="text-dark-text-muted hover:text-primary transition-colors p-2 md:px-3 md:py-2">
+            <i class="fas fa-layer-group mr-0 md:mr-1"></i>
+            <span class="hidden md:inline">Groups</span>
+          </a>
+          <button onclick="logout()" class="text-dark-text-muted hover:text-red-400 transition-colors p-2 md:px-3 md:py-2">
+            <i class="fas fa-sign-out-alt mr-0 md:mr-1"></i>
+            <span class="hidden md:inline">Logout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+    <!-- Header -->
+    <div class="glass-panel p-4 md:p-6 mb-6 md:mb-8">
+      <div class="flex flex-col gap-4">
+        <div class="text-center md:text-left">
+          <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Recipe Repository</h1>
+          <p class="text-dark-text-muted text-sm md:text-base">Discover and fork amazing recipes from our culinary community</p>
+        </div>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+          <div class="relative flex-1">
+            <input type="text" id="search-input" placeholder="Search recipes..." class="input pr-10 w-full">
+            <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-text-muted"></i>
+          </div>
+          <button class="btn justify-center sm:justify-start" onclick="window.location.href='/dashboard'">
+            <i class="fas fa-plus mr-2"></i>Create Recipe
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+      <!-- Sidebar Filters -->
+      <div class="lg:col-span-1 order-2 lg:order-1">
+        <!-- Sort Options -->
+        <div class="glass-panel p-4 mb-4 md:mb-6">
+          <h3 class="text-base md:text-lg font-semibold text-white mb-3 md:mb-4">Sort By</h3>
+          <div class="space-y-2">
+            <button class="sort-btn active w-full text-left p-3 rounded-lg bg-primary/20 text-primary font-medium" data-sort="trending">
+              <i class="fas fa-fire mr-2"></i>Trending
+            </button>
+            <button class="sort-btn w-full text-left p-3 rounded-lg text-dark-text-muted hover:text-white hover:bg-dark-surface-light transition-colors" data-sort="latest">
+              <i class="fas fa-clock mr-2"></i>Latest
+            </button>
+            <button class="sort-btn w-full text-left p-3 rounded-lg text-dark-text-muted hover:text-white hover:bg-dark-surface-light transition-colors" data-sort="popular">
+              <i class="fas fa-heart mr-2"></i>Most Liked
+            </button>
+            <button class="sort-btn w-full text-left p-3 rounded-lg text-dark-text-muted hover:text-white hover:bg-dark-surface-light transition-colors" data-sort="forks">
+              <i class="fas fa-code-branch mr-2"></i>Most Forked
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter by Category -->
+        <div class="glass-panel p-4 mb-4 md:mb-6">
+          <h3 class="text-base md:text-lg font-semibold text-white mb-3 md:mb-4">Categories</h3>
+          <div class="space-y-2">
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="checkbox" class="category-filter" value="appetizer" checked>
+              <span class="text-white">Appetizers</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="checkbox" class="category-filter" value="main" checked>
+              <span class="text-white">Main Dishes</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="checkbox" class="category-filter" value="dessert" checked>
+              <span class="text-white">Desserts</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="checkbox" class="category-filter" value="beverage" checked>
+              <span class="text-white">Beverages</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="checkbox" class="category-filter" value="side" checked>
+              <span class="text-white">Side Dishes</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Filter by Time -->
+        <div class="glass-panel p-4 mb-4 md:mb-6">
+          <h3 class="text-base md:text-lg font-semibold text-white mb-3 md:mb-4">Cooking Time</h3>
+          <div class="space-y-2">
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="radio" name="time-filter" value="all" checked>
+              <span class="text-white">Any time</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="radio" name="time-filter" value="15">
+              <span class="text-white">Under 15 min</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="radio" name="time-filter" value="30">
+              <span class="text-white">Under 30 min</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="radio" name="time-filter" value="60">
+              <span class="text-white">Under 1 hour</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Filter by Difficulty -->
+        <div class="glass-panel p-4">
+          <h3 class="text-base md:text-lg font-semibold text-white mb-3 md:mb-4">Difficulty</h3>
+          <div class="space-y-2">
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="checkbox" class="difficulty-filter" value="easy" checked>
+              <span class="text-white">Easy</span>
+              <span class="ml-auto text-green-400 text-sm">★</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="checkbox" class="difficulty-filter" value="medium" checked>
+              <span class="text-white">Medium</span>
+              <span class="ml-auto text-yellow-400 text-sm">★★</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 hover:bg-dark-surface-light rounded-lg transition-colors">
+              <input type="checkbox" class="difficulty-filter" value="hard" checked>
+              <span class="text-white">Hard</span>
+              <span class="ml-auto text-red-400 text-sm">★★★</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Recipe Grid -->
+      <div class="lg:col-span-3 order-1 lg:order-2">
+        <!-- Results Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div class="flex items-center gap-4">
+            <span class="text-white font-medium" id="results-count">Loading recipes...</span>
+            <div class="flex items-center gap-2">
+              <button id="grid-view" class="p-2 rounded-lg bg-primary/20 text-primary">
+                <i class="fas fa-th-large"></i>
+              </button>
+              <button id="list-view" class="p-2 rounded-lg text-dark-text-muted hover:text-white hover:bg-dark-surface-light transition-colors">
+                <i class="fas fa-list"></i>
+              </button>
+            </div>
+          </div>
+          <button class="btn btn-secondary" onclick="clearFilters()">
+            <i class="fas fa-undo mr-2"></i>Clear Filters
+          </button>
+        </div>
+
+        <!-- Recipe Content -->
+        <div id="recipes-content">
+          <div class="loading text-center py-12">
+            <div class="text-4xl text-primary mb-4">
+              <i class="fas fa-spinner"></i>
+            </div>
+            <p class="text-dark-text-muted">Loading recipes...</p>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="hidden mt-8 flex justify-center">
+          <div class="flex items-center gap-2">
+            <button id="prev-page" class="btn btn-secondary" disabled>
+              <i class="fas fa-chevron-left mr-2"></i>Previous
+            </button>
+            <div id="page-numbers" class="flex items-center gap-2 mx-4">
+              <!-- Page numbers will be inserted here -->
+            </div>
+            <button id="next-page" class="btn btn-secondary">
+              Next<i class="fas fa-chevron-right ml-2"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let recipes = [];
+    let filteredRecipes = [];
+    let currentPage = 1;
+    let recipesPerPage = 12;
+    let currentSort = 'trending';
+    let currentView = 'grid';
+    let searchTimeout = null;
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      checkAuth();
+      loadRecipes();
+      setupEventListeners();
+    });
+
+    function checkAuth() {
+      fetch('/api/auth/me', {
+        credentials: 'include'
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.user) {
+            currentUser = data.user;
+          } else {
+            window.location.href = '/';
+          }
+        })
+        .catch(error => {
+          console.error('Auth check failed:', error);
+          window.location.href = '/';
+        });
+    }
+
+    function setupEventListeners() {
+      // Search input
+      document.getElementById('search-input').addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          filterRecipes();
+        }, 300);
+      });
+
+      // Sort buttons
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sortType = btn.dataset.sort;
+          switchSort(sortType);
+        });
+      });
+
+      // View toggles
+      document.getElementById('grid-view').addEventListener('click', () => switchView('grid'));
+      document.getElementById('list-view').addEventListener('click', () => switchView('list'));
+
+      // Filter changes
+      document.querySelectorAll('.category-filter, .difficulty-filter').forEach(filter => {
+        filter.addEventListener('change', filterRecipes);
+      });
+
+      document.querySelectorAll('input[name="time-filter"]').forEach(filter => {
+        filter.addEventListener('change', filterRecipes);
+      });
+
+      // Pagination
+      document.getElementById('prev-page').addEventListener('click', () => changePage(currentPage - 1));
+      document.getElementById('next-page').addEventListener('click', () => changePage(currentPage + 1));
+    }
+
+    function loadRecipes() {
+      const recipesContent = document.getElementById('recipes-content');
+      recipesContent.innerHTML = `
+        <div class="loading text-center py-12">
+          <div class="text-4xl text-primary mb-4">
+            <i class="fas fa-spinner"></i>
+          </div>
+          <p class="text-dark-text-muted">Loading recipes...</p>
+        </div>
+      `;
+
+      fetch('/api/recipes?public=true', {
+        credentials: 'include'
+      })
+        .then(response => response.json())
+        .then(data => {
+          recipes = data.recipes || [];
+          filteredRecipes = [...recipes];
+          sortRecipes();
+          displayRecipes();
+          updateResultsCount();
+        })
+        .catch(error => {
+          console.error('Failed to load recipes:', error);
+          recipesContent.innerHTML = `
+            <div class="glass-panel p-8 text-center">
+              <div class="text-6xl text-red-400 mb-4">
+                <i class="fas fa-exclamation-triangle"></i>
+              </div>
+              <h2 class="text-2xl font-bold text-white mb-2">Failed to Load Recipes</h2>
+              <p class="text-dark-text-muted mb-6">Something went wrong while loading the recipes.</p>
+              <button onclick="loadRecipes()" class="btn">
+                <i class="fas fa-redo mr-2"></i>Try Again
+              </button>
+            </div>
+          `;
+        });
+    }
+
+    function switchSort(sortType) {
+      currentSort = sortType;
+      
+      // Update sort button states
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-primary/20', 'text-primary');
+        btn.classList.add('text-dark-text-muted');
+      });
+      
+      const activeBtn = document.querySelector(`[data-sort="${sortType}"]`);
+      activeBtn.classList.add('active', 'bg-primary/20', 'text-primary');
+      activeBtn.classList.remove('text-dark-text-muted');
+      
+      sortRecipes();
+      displayRecipes();
+    }
+
+    function switchView(viewType) {
+      currentView = viewType;
+      
+      // Update view button states
+      document.getElementById('grid-view').classList.remove('bg-primary/20', 'text-primary');
+      document.getElementById('list-view').classList.remove('bg-primary/20', 'text-primary');
+      document.getElementById('grid-view').classList.add('text-dark-text-muted');
+      document.getElementById('list-view').classList.add('text-dark-text-muted');
+      
+      const activeBtn = document.getElementById(`${viewType}-view`);
+      activeBtn.classList.add('bg-primary/20', 'text-primary');
+      activeBtn.classList.remove('text-dark-text-muted');
+      
+      displayRecipes();
+    }
+
+    function sortRecipes() {
+      switch (currentSort) {
+        case 'trending':
+          filteredRecipes.sort((a, b) => {
+            const scoreA = (a.like_count || 0) + (a.fork_count || 0) * 2;
+            const scoreB = (b.like_count || 0) + (b.fork_count || 0) * 2;
+            return scoreB - scoreA;
+          });
+          break;
+        case 'latest':
+          filteredRecipes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          break;
+        case 'popular':
+          filteredRecipes.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+          break;
+        case 'forks':
+          filteredRecipes.sort((a, b) => (b.fork_count || 0) - (a.fork_count || 0));
+          break;
+      }
+    }
+
+    function filterRecipes() {
+      const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+      const selectedCategories = Array.from(document.querySelectorAll('.category-filter:checked')).map(cb => cb.value);
+      const selectedDifficulties = Array.from(document.querySelectorAll('.difficulty-filter:checked')).map(cb => cb.value);
+      const timeFilter = document.querySelector('input[name="time-filter"]:checked').value;
+
+      filteredRecipes = recipes.filter(recipe => {
+        // Search filter
+        const matchesSearch = !searchQuery || 
+          recipe.title.toLowerCase().includes(searchQuery) || 
+          (recipe.description && recipe.description.toLowerCase().includes(searchQuery)) ||
+          (recipe.user_name && recipe.user_name.toLowerCase().includes(searchQuery));
+
+        // Category filter
+        const matchesCategory = selectedCategories.length === 0 || 
+          selectedCategories.includes(recipe.category);
+
+        // Difficulty filter
+        const matchesDifficulty = selectedDifficulties.length === 0 || 
+          selectedDifficulties.includes(recipe.difficulty);
+
+        // Time filter
+        const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
+        const matchesTime = timeFilter === 'all' || 
+          (timeFilter === '15' && totalTime <= 15) ||
+          (timeFilter === '30' && totalTime <= 30) ||
+          (timeFilter === '60' && totalTime <= 60);
+
+        return matchesSearch && matchesCategory && matchesDifficulty && matchesTime;
+      });
+
+      currentPage = 1;
+      sortRecipes();
+      displayRecipes();
+      updateResultsCount();
+    }
+
+    function displayRecipes() {
+      const recipesContent = document.getElementById('recipes-content');
+      
+      if (filteredRecipes.length === 0) {
+        recipesContent.innerHTML = `
+          <div class="glass-panel p-8 text-center">
+            <div class="text-6xl text-dark-text-muted mb-4">
+              <i class="fas fa-search"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2">No recipes found</h2>
+            <p class="text-dark-text-muted mb-6">Try adjusting your search or filters to find more recipes.</p>
+            <button onclick="clearFilters()" class="btn">
+              <i class="fas fa-undo mr-2"></i>Clear Filters
+            </button>
+          </div>
+        `;
+        document.getElementById('pagination').classList.add('hidden');
+        return;
+      }
+
+      // Pagination
+      const startIndex = (currentPage - 1) * recipesPerPage;
+      const endIndex = startIndex + recipesPerPage;
+      const paginatedRecipes = filteredRecipes.slice(startIndex, endIndex);
+
+      // Display recipes
+      if (currentView === 'grid') {
+        recipesContent.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            ${paginatedRecipes.map(recipe => createRecipeCard(recipe)).join('')}
+          </div>
+        `;
+      } else {
+        recipesContent.innerHTML = `
+          <div class="space-y-4">
+            ${paginatedRecipes.map(recipe => createRecipeListItem(recipe)).join('')}
+          </div>
+        `;
+      }
+
+      updatePagination();
+    }
+
+    function createRecipeCard(recipe) {
+      const timeAgo = formatTimeAgo(recipe.created_at);
+      const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
+      const difficultyColor = recipe.difficulty === 'easy' ? 'text-green-400' : 
+                             recipe.difficulty === 'medium' ? 'text-yellow-400' : 'text-red-400';
+      const difficultyStars = recipe.difficulty === 'easy' ? '★' : 
+                             recipe.difficulty === 'medium' ? '★★' : '★★★';
+
+      return `
+        <div class="recipe-card" onclick="viewRecipe(${recipe.id})">
+          <div class="aspect-video bg-gradient-to-br from-primary/20 to-primary-dark/20 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
+            ${recipe.image_url ? 
+              `<img src="${recipe.image_url}" alt="${recipe.title}" class="w-full h-full object-cover">` :
+              `<i class="fas fa-utensils text-4xl text-primary"></i>`
+            }
+          </div>
+          
+          <div class="flex items-start justify-between mb-2">
+            <h3 class="text-lg font-semibold text-white line-clamp-2 flex-1">${recipe.title}</h3>
+            ${recipe.is_original ? '' : '<i class="fas fa-code-branch text-primary text-sm ml-2 flex-shrink-0" title="Forked recipe"></i>'}
+          </div>
+          
+          <p class="text-dark-text-muted text-sm mb-4 line-clamp-2">${recipe.description || 'No description available'}</p>
+          
+          <div class="flex items-center justify-between text-xs text-dark-text-muted mb-4">
+            <div class="flex items-center gap-3">
+              <span><i class="fas fa-clock mr-1"></i>${totalTime}min</span>
+              <span><i class="fas fa-users mr-1"></i>${recipe.servings}</span>
+              <span class="${difficultyColor}">${difficultyStars}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span><i class="fas fa-heart mr-1"></i>${recipe.like_count || 0}</span>
+              <span><i class="fas fa-code-branch mr-1"></i>${recipe.fork_count || 0}</span>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white text-sm font-bold">
+                ${recipe.user_avatar ? 
+                  `<img src="${recipe.user_avatar}" alt="${recipe.user_name || 'User'}" class="w-full h-full rounded-full object-cover">` :
+                  (recipe.user_name || 'U').charAt(0).toUpperCase()
+                }
+              </div>
+              <div>
+                <div class="text-white font-medium text-sm">${recipe.user_name || 'Unknown User'}</div>
+                <div class="text-dark-text-muted text-xs">@${recipe.username || 'unknown'}</div>
+              </div>
+            </div>
+            <button onclick="event.stopPropagation(); forkRecipe(${recipe.id})" class="btn btn-secondary text-sm px-3 py-1">
+              <i class="fas fa-code-branch mr-1"></i>Fork
+            </button>
+          </div>
+          
+          <div class="text-dark-text-muted text-xs mt-2 text-right">
+            ${timeAgo}
+          </div>
+        </div>
+      `;
+    }
+
+    function createRecipeListItem(recipe) {
+      const timeAgo = formatTimeAgo(recipe.created_at);
+      const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
+      const difficultyColor = recipe.difficulty === 'easy' ? 'text-green-400' : 
+                             recipe.difficulty === 'medium' ? 'text-yellow-400' : 'text-red-400';
+      const difficultyStars = recipe.difficulty === 'easy' ? '★' : 
+                             recipe.difficulty === 'medium' ? '★★' : '★★★';
+
+      return `
+        <div class="glass-panel p-6 hover:border-primary/30 transition-colors cursor-pointer" onclick="viewRecipe(${recipe.id})">
+          <div class="flex gap-4">
+            <div class="w-32 h-32 bg-gradient-to-br from-primary/20 to-primary-dark/20 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+              ${recipe.image_url ? 
+                `<img src="${recipe.image_url}" alt="${recipe.title}" class="w-full h-full object-cover">` :
+                `<i class="fas fa-utensils text-2xl text-primary"></i>`
+              }
+            </div>
+            
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <h3 class="text-xl font-semibold text-white">${recipe.title}</h3>
+                  ${recipe.is_original ? '' : '<i class="fas fa-code-branch text-primary" title="Forked recipe"></i>'}
+                </div>
+                <button onclick="event.stopPropagation(); forkRecipe(${recipe.id})" class="btn btn-secondary text-sm px-3 py-1">
+                  <i class="fas fa-code-branch mr-1"></i>Fork
+                </button>
+              </div>
+              
+              <p class="text-dark-text-muted mb-4 line-clamp-2">${recipe.description || 'No description available'}</p>
+              
+              <div class="flex items-center justify-between text-sm text-dark-text-muted mb-3">
+                <div class="flex items-center gap-4">
+                  <span><i class="fas fa-clock mr-1"></i>${totalTime} minutes</span>
+                  <span><i class="fas fa-users mr-1"></i>${recipe.servings} servings</span>
+                  <span class="${difficultyColor}">Difficulty: ${difficultyStars}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span><i class="fas fa-heart mr-1"></i>${recipe.like_count || 0}</span>
+                  <span><i class="fas fa-code-branch mr-1"></i>${recipe.fork_count || 0}</span>
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white text-sm font-bold">
+                    ${recipe.user_avatar ? 
+                      `<img src="${recipe.user_avatar}" alt="${recipe.user_name || 'User'}" class="w-full h-full rounded-full object-cover">` :
+                      (recipe.user_name || 'U').charAt(0).toUpperCase()
+                    }
+                  </div>
+                  <div>
+                    <div class="text-white font-medium text-sm">${recipe.user_name || 'Unknown User'}</div>
+                    <div class="text-dark-text-muted text-xs">@${recipe.username || 'unknown'}</div>
+                  </div>
+                </div>
+                <div class="text-dark-text-muted text-xs">
+                  ${timeAgo}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateResultsCount() {
+      const count = filteredRecipes.length;
+      const countElement = document.getElementById('results-count');
+      countElement.textContent = count === 1 ? '1 recipe found' : `${count} recipes found`;
+    }
+
+    function updatePagination() {
+      const totalPages = Math.ceil(filteredRecipes.length / recipesPerPage);
+      
+      if (totalPages <= 1) {
+        document.getElementById('pagination').classList.add('hidden');
+        return;
+      }
+
+      document.getElementById('pagination').classList.remove('hidden');
+      
+      // Update prev/next buttons
+      document.getElementById('prev-page').disabled = currentPage === 1;
+      document.getElementById('next-page').disabled = currentPage === totalPages;
+      
+      // Update page numbers
+      const pageNumbers = document.getElementById('page-numbers');
+      pageNumbers.innerHTML = '';
+      
+      for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.textContent = i;
+        pageBtn.className = `px-3 py-2 rounded-lg ${i === currentPage ? 'bg-primary text-white' : 'text-dark-text-muted hover:text-white hover:bg-dark-surface-light'} transition-colors`;
+        pageBtn.onclick = () => changePage(i);
+        pageNumbers.appendChild(pageBtn);
+      }
+    }
+
+    function changePage(page) {
+      const totalPages = Math.ceil(filteredRecipes.length / recipesPerPage);
+      if (page < 1 || page > totalPages) return;
+      
+      currentPage = page;
+      displayRecipes();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function clearFilters() {
+      // Reset search
+      document.getElementById('search-input').value = '';
+      
+      // Reset categories
+      document.querySelectorAll('.category-filter').forEach(cb => cb.checked = true);
+      
+      // Reset difficulties
+      document.querySelectorAll('.difficulty-filter').forEach(cb => cb.checked = true);
+      
+      // Reset time filter
+      document.querySelector('input[name="time-filter"][value="all"]').checked = true;
+      
+      // Apply filters
+      filterRecipes();
+    }
+
+    function forkRecipe(recipeId) {
+      if (!confirm('Fork this recipe? You\'ll get your own copy to modify.')) {
+        return;
+      }
+
+      fetch(`/api/recipes/${recipeId}/fork`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          fork_reason: 'Forked from recipe browser',
+          is_public: true
+        })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.ok) {
+            // Show success message
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg z-50 animate-slide-up';
+            toast.textContent = data.message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+
+            // Optionally redirect to edit the forked recipe
+            if (confirm('Recipe forked! Would you like to edit your fork now?')) {
+              window.location.href = `/recipe/${data.forked_recipe_id}/edit`;
+            } else {
+              // Reload recipes to update fork counts
+              loadRecipes();
+            }
+          } else {
+            alert(data.error || 'Failed to fork recipe');
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fork recipe:', error);
+          alert('Failed to fork recipe');
+        });
+    }
+
+    function viewRecipe(recipeId) {
+      window.location.href = `/dashboard#recipe-${recipeId}`;
+    }
+
+    function formatTimeAgo(dateString) {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInSeconds = Math.floor((now - date) / 1000);
+
+      if (diffInSeconds < 60) {
+        return 'just now';
+      } else if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60);
+        return `${minutes}m ago`;
+      } else if (diffInSeconds < 86400) {
+        const hours = Math.floor(diffInSeconds / 3600);
+        return `${hours}h ago`;
+      } else if (diffInSeconds < 604800) {
+        const days = Math.floor(diffInSeconds / 86400);
+        return `${days}d ago`;
+      } else {
+        return date.toLocaleDateString();
+      }
+    }
+
+    function logout() {
+      fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      })
+        .then(() => {
+          window.location.href = '/';
+        })
+        .catch(error => {
+          console.error('Logout failed:', error);
+          window.location.href = '/';
+        });
+    }
+  </script>
+</body>
+</html>

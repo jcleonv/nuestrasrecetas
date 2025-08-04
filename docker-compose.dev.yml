@@ -1,0 +1,25 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Mount source code for live reloading
+      - ./templates:/app/templates
+      - ./static:/app/static
+      - ./app.py:/app/app.py
+      - ./config.py:/app/config.py
+    environment:
+      - FLASK_ENV=development
+      - ENVIRONMENT=development
+      - FLASK_DEBUG=1
+      - DEV_MODE=true
+      - DISABLE_SUPABASE=true
+      - SUPABASE_URL=http://localhost:54321
+      - SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+    restart: unless-stopped
+    command: python app.py  # Use Flask dev server instead of gunicorn
+    
+  # No nginx for local dev - access directly on :8000
