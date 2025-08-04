@@ -111,6 +111,67 @@ if sentry_dsn:
         release=os.getenv('SENTRY_RELEASE', 'unknown'),
     )
 
+# Development authentication bypass and test users
+DEV_USERS = {
+    'dev@test.com': {
+        'id': '00000000-0000-0000-0000-000000000001',
+        'email': 'dev@test.com',
+        'password': 'dev123',
+        'name': 'Dev User',
+        'username': 'devuser',
+        'avatar_url': '',
+        'is_dev': True
+    },
+    'alice@test.com': {
+        'id': '00000000-0000-0000-0000-000000000002', 
+        'email': 'alice@test.com',
+        'password': 'alice123',
+        'name': 'Alice Chef',
+        'username': 'alicechef',
+        'avatar_url': '',
+        'is_dev': True
+    },
+    'bob@test.com': {
+        'id': '00000000-0000-0000-0000-000000000003',
+        'email': 'bob@test.com', 
+        'password': 'bob123',
+        'name': 'Bob Cook',
+        'username': 'bobcook',
+        'avatar_url': '',
+        'is_dev': True
+    }
+}
+
+def is_development():
+    """Check if we're running in development mode"""
+    return os.getenv('ENVIRONMENT') == 'development' or os.getenv('FLASK_ENV') == 'development'
+
+def is_pure_dev_mode():
+    """Check if we're running in pure development mode (no Supabase)"""
+    return is_development() and os.getenv('DISABLE_SUPABASE') == 'true'
+
+# Load development data
+DEV_RECIPES = []
+DEV_POSTS = []
+
+def load_dev_data():
+    """Load development seed data from JSON files"""
+    global DEV_RECIPES, DEV_POSTS
+    try:
+        if os.path.exists('dev_recipes.json'):
+            with open('dev_recipes.json', 'r') as f:
+                DEV_RECIPES = json.load(f)
+        if os.path.exists('dev_posts.json'):
+            with open('dev_posts.json', 'r') as f:
+                DEV_POSTS = json.load(f)
+        print(f"🌱 Loaded {len(DEV_RECIPES)} dev recipes and {len(DEV_POSTS)} dev posts")
+    except Exception as e:
+        print(f"⚠️ Could not load dev data: {e}")
+
+# Load dev data on startup if in pure dev mode
+if is_pure_dev_mode():
+    load_dev_data()
+
 # Flask app
 app = Flask(__name__)
 app.config.from_object(config)
@@ -121,7 +182,11 @@ allowed_origins = [
 ]
 
 if config.FLASK_ENV == 'development':
-    allowed_origins.extend(["http://localhost:3000", "http://127.0.0.1:3000"])
+    allowed_origins.extend(["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000", "http://127.0.0.1:8000"])
+    # Development session configuration for better persistence
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 CORS(app, 
      origins=allowed_origins,
@@ -129,9 +194,12 @@ CORS(app,
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization"])
 
-# Initialize Supabase client
+# Initialize Supabase client (skip in pure dev mode)
 supabase: Optional[Client] = None
-if config.use_supabase:
+if is_pure_dev_mode():
+    print("🔧 Pure dev mode - Supabase disabled")
+    supabase = None
+elif config.use_supabase:
     try:
         supabase = create_client(
             supabase_url=config.SUPABASE_URL,
@@ -145,8 +213,25 @@ else:
     print("❌ Supabase not configured - check .env file")
 
 def get_current_user():
-    """Get current user from Supabase session"""
+    """Get current user from Supabase session or development session"""
     user_id = session.get('user_id')
+    
+    # Development mode - check for dev user first
+    if is_development() and session.get('is_dev_user'):
+        dev_user_data = session.get('dev_user_data')
+        if dev_user_data and dev_user_data['id'] == user_id:
+            # Debug log for development
+            print(f"🔧 Dev auth success for: {dev_user_data.get('email')}")
+            return dev_user_data
+        else:
+            # Clear invalid dev session
+            print(f"🔧 Dev auth failed - clearing session. user_id: {user_id}, dev_data: {bool(dev_user_data)}")
+            session.pop('user_id', None)
+            session.pop('is_dev_user', None)
+            session.pop('dev_user_data', None)
+            return None
+    
+    # Production mode - use Supabase
     access_token = session.get('supabase_access_token')
     
     if not user_id or not access_token or not supabase:
@@ -183,6 +268,15 @@ def require_auth(f):
     """Decorator to require authentication"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # In development mode, allow access if Supabase is not configured but dev user exists
+        if is_development():
+            current_user = get_current_user()
+            if current_user:
+                return f(*args, **kwargs)
+            else:
+                return jsonify({"error": "Authentication required"}), 401
+        
+        # Production mode - require Supabase
         if not supabase:
             return jsonify({"error": "Supabase not configured"}), 500
         if not get_current_user():
@@ -205,6 +299,16 @@ def dashboard():
         return redirect(url_for('landing'))
     return render_template("index.html", user=current_user)
 
+@app.route("/profile")
+def my_profile():
+    """Redirect to current user's profile"""
+    current_user = get_current_user()
+    if not current_user:
+        return redirect(url_for('landing'))
+    
+    username = current_user.get('username') or current_user.get('email', '').split('@')[0]
+    return redirect(url_for('profile_page', username=username))
+
 @app.route("/profile/<username>")
 def profile_page(username):
     return render_template('profile.html')
@@ -225,6 +329,18 @@ def group_page(group_id):
 def health_check():
     """Health check endpoint"""
     try:
+        # Pure dev mode - always healthy
+        if is_pure_dev_mode():
+            return jsonify({
+                "status": "healthy",
+                "mode": "pure_development",
+                "dev_users": len(DEV_USERS),
+                "dev_recipes": len(DEV_RECIPES),
+                "dev_posts": len(DEV_POSTS),
+                "sentry": "disabled"
+            })
+        
+        # Production mode - check Supabase
         if supabase:
             # Test Supabase connection
             response = supabase.table('profiles').select('count', count='exact').execute()
@@ -316,15 +432,39 @@ def signup():
 
 @app.route("/api/auth/login", methods=["POST"])
 def login():
-    if not supabase:
-        return jsonify({"error": "Supabase no configurado"}), 500
-        
     data = request.json or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password", "")
     
     if not email or not password:
         return jsonify({"error": "Email y contraseña son requeridos"}), 400
+    
+    # Development mode - check DEV_USERS first
+    if is_development() and email in DEV_USERS:
+        dev_user = DEV_USERS[email]
+        if dev_user['password'] == password:
+            # Create development session
+            session['user_id'] = dev_user['id']
+            session['is_dev_user'] = True
+            session['dev_user_data'] = dev_user
+            
+            return jsonify({
+                "message": "Inicio de sesión exitoso (desarrollo)",
+                "user": {
+                    "id": dev_user['id'],
+                    "email": dev_user['email'],
+                    "name": dev_user['name'],
+                    "username": dev_user['username'],
+                    "avatar_url": dev_user['avatar_url'],
+                    "is_dev": True
+                }
+            })
+        else:
+            return jsonify({"error": "Credenciales inválidas"}), 401
+    
+    # Production mode or non-dev user - use Supabase
+    if not supabase:
+        return jsonify({"error": "Supabase no configurado"}), 500
     
     try:
         # Sign in with Supabase Auth
@@ -389,6 +529,12 @@ def login():
 
 @app.route("/api/auth/logout", methods=["POST"])
 def logout():
+    # Clear development session if exists
+    if session.get('is_dev_user'):
+        session.pop('is_dev_user', None)
+        session.pop('dev_user_data', None)
+    
+    # Clear Supabase session if exists
     if supabase and session.get('supabase_access_token'):
         try:
             supabase.auth.sign_out()
@@ -421,14 +567,21 @@ def list_recipes():
         
         print(f"Current user: {current_user}")  # Debug log
         
-        # Get recipes from Supabase using the current user's UUID
-        try:
-            response = supabase.table('recipes').select('*').eq('user_id', current_user['id']).execute()
-            recipes = response.data or []
-        except Exception as e:
-            print(f"Error fetching recipes: {e}")
-            # If there's a schema mismatch, return empty list for now
-            recipes = []
+        # Pure dev mode - use dev recipes data
+        if is_pure_dev_mode():
+            recipes = DEV_RECIPES.copy()
+        else:
+            # Production mode - get recipes from Supabase using the current user's UUID
+            if not supabase:
+                return jsonify({"error": "Database not available"}), 500
+                
+            try:
+                response = supabase.table('recipes').select('*').eq('user_id', current_user['id']).execute()
+                recipes = response.data or []
+            except Exception as e:
+                print(f"Error fetching recipes: {e}")
+                # If there's a schema mismatch, return empty list for now
+                recipes = []
         
         out = []
         for r in recipes:
@@ -866,6 +1019,30 @@ def build_groceries():
 def get_profile(username):
     """Get public profile information"""
     try:
+        # Pure dev mode - return dev user profile
+        if is_pure_dev_mode():
+            for email, user_data in DEV_USERS.items():
+                if user_data['username'] == username:
+                    return jsonify({
+                        'id': user_data['id'],
+                        'username': user_data['username'], 
+                        'name': user_data['name'],
+                        'email': user_data['email'],
+                        'avatar_url': user_data['avatar_url'],
+                        'bio': f"Development user profile for {user_data['name']}",
+                        'followers_count': 5,
+                        'following_count': 3,
+                        'recipes_count': len(DEV_RECIPES),
+                        'is_following': False,
+                        'follows_back': False,
+                        'created_at': '2025-01-01T00:00:00Z'
+                    })
+            return jsonify({"error": "Profile not found"}), 404
+        
+        # Production mode - use Supabase
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+            
         # Get profile data from profiles table
         profile_response = supabase.table('profiles').select('*').eq('username', username).execute()
         if not profile_response.data or len(profile_response.data) == 0:
@@ -977,6 +1154,14 @@ def get_feed():
         limit = int(request.args.get('limit', 20))
         offset = (page - 1) * limit
         
+        # Pure dev mode - return dev recipes as feed
+        if is_pure_dev_mode():
+            return jsonify({"recipes": DEV_RECIPES})
+        
+        # Production mode - use Supabase
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+            
         # Get feed using the database function
         response = supabase.rpc('get_user_feed', {
             'input_user_id': current_user['id'],
@@ -1516,7 +1701,35 @@ def list_groups():
             except:
                 pass  # Continue without authentication
         
-        # Check if groups table exists
+        # Pure dev mode - return mock groups
+        if is_pure_dev_mode():
+            mock_groups = [
+                {
+                    'id': 'group-1',
+                    'name': 'Recipe Lovers',
+                    'description': 'A community for sharing amazing recipes',
+                    'avatar_url': '',
+                    'is_public': True,
+                    'member_count': 15,
+                    'is_member': False,
+                    'owner_name': 'Alice Cook',
+                    'created_at': '2025-01-01T00:00:00Z'
+                },
+                {
+                    'id': 'group-2', 
+                    'name': 'BBQ Masters',
+                    'description': 'Perfect your grilling and BBQ skills',
+                    'avatar_url': '',
+                    'is_public': True,
+                    'member_count': 8,
+                    'is_member': False,
+                    'owner_name': 'Bob Chef',
+                    'created_at': '2025-01-01T00:00:00Z'
+                }
+            ]
+            return jsonify({"groups": mock_groups})
+        
+        # Production mode - check if groups table exists
         try:
             if supabase:
                 # Try using the group_details view first
@@ -1808,13 +2021,38 @@ def search_users():
     try:
         query = request.args.get('q', '').strip()
         limit = min(int(request.args.get('limit', 20)), 50)  # Max 50 results
+        current_user = get_current_user()
         
         if not query:
             return jsonify({"users": []})
         
-        # Search users using simple SQL (since RPC might not work)
-        current_user = get_current_user()
+        # Pure dev mode - search dev users
+        if is_pure_dev_mode():
+            matching_users = []
+            for email, user_data in DEV_USERS.items():
+                if (query.lower() in user_data['name'].lower() or 
+                    query.lower() in user_data['username'].lower() or 
+                    query.lower() in user_data['email'].lower()):
+                    if user_data['id'] != current_user['id']:  # Don't include self
+                        matching_users.append({
+                            'id': user_data['id'],
+                            'username': user_data['username'],
+                            'name': user_data['name'],
+                            'avatar_url': user_data['avatar_url'],
+                            'bio': f"Development user - {user_data['name']}",
+                            'followers_count': 5,
+                            'following_count': 3,
+                            'is_following': False,
+                            'follows_back': False,
+                            'created_at': '2025-01-01T00:00:00Z'
+                        })
+            return jsonify({"users": matching_users[:limit]})
         
+        # Production mode - use Supabase
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+        
+        # Search users using simple SQL (since RPC might not work)
         response = supabase.table('profiles').select('''
             id, username, name, avatar_url, bio, followers_count, following_count, created_at
         ''').neq('id', current_user['id']).or_(f'username.ilike.%{query}%,name.ilike.%{query}%').limit(limit).execute()
@@ -2243,6 +2481,19 @@ def unstar_recipe(recipe_id):
 def get_dashboard_stats():
     """Get real-time dashboard statistics"""
     try:
+        # Pure dev mode - use mock data
+        if is_pure_dev_mode():
+            return jsonify({
+                "total_recipes": len(DEV_RECIPES),
+                "total_forks": 12,  # Mock data
+                "active_cooks": len(DEV_USERS),
+                "recipes_today": 1
+            })
+        
+        # Production mode - use Supabase
+        if not supabase:
+            return jsonify({"error": "Database not available"}), 500
+            
         # Get total recipes count
         recipes_response = supabase.table('recipes').select('id', count='exact').execute()
         total_recipes = recipes_response.count or 0

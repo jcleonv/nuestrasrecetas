@@ -16,8 +16,18 @@ create table if not exists public.groups (
   updated_at timestamp with time zone default now()
 );
 
--- Enable RLS for groups
+-- Create group_members junction table FIRST (needed for policies)
+create table if not exists public.group_members (
+  group_id uuid not null references public.groups(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  role text default 'member' check (role in ('owner', 'admin', 'moderator', 'member')),
+  joined_at timestamp with time zone default now(),
+  primary key (group_id, user_id)
+);
+
+-- Enable RLS for both tables
 alter table public.groups enable row level security;
+alter table public.group_members enable row level security;
 
 -- Create policies for groups
 drop policy if exists "Public groups are viewable by everyone" on public.groups;
@@ -50,17 +60,7 @@ drop policy if exists "Group owners can delete their groups" on public.groups;
 create policy "Group owners can delete their groups" on public.groups
   for delete using (owner_id = auth.uid());
 
--- Create group_members junction table
-create table if not exists public.group_members (
-  group_id uuid not null references public.groups(id) on delete cascade,
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  role text default 'member' check (role in ('owner', 'admin', 'moderator', 'member')),
-  joined_at timestamp with time zone default now(),
-  primary key (group_id, user_id)
-);
-
--- Enable RLS for group_members
-alter table public.group_members enable row level security;
+-- group_members table already created above
 
 -- Create policies for group_members
 drop policy if exists "Group memberships are viewable by group members" on public.group_members;

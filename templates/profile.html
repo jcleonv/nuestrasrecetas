@@ -342,7 +342,9 @@
     });
 
     function checkAuth() {
-      fetch('/api/auth/me')
+      fetch('/api/auth/me', {
+        credentials: 'include'
+      })
         .then(response => response.json())
         .then(data => {
           if (data.user) {
@@ -353,7 +355,9 @@
     }
 
     function loadProfile() {
-      fetch(`/api/profile/${username}`)
+      fetch(`/api/profile/${username}`, {
+        credentials: 'include'
+      })
         .then(response => {
           if (!response.ok) {
             throw new Error('Profile not found');
@@ -447,7 +451,8 @@
       
       try {
         const response = await fetch(`/api/users/${userId}/${endpoint}`, {
-          method: 'POST'
+          method: 'POST',
+          credentials: 'include'
         });
         
         const data = await response.json();
@@ -611,7 +616,10 @@
     }
 
     function logout() {
-      fetch('/api/auth/logout', { method: 'POST' })
+      fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      })
         .then(() => {
           window.location.href = '/';
         })
